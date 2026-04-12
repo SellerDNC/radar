@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Radar — Agente de Produto</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --yellow:#FFE600;--yellow-dk:#F0D000;--blue:#3483FA;--blue-dk:#2968C8;
+  --green:#00A650;--red:#F04E37;--orange:#FF7733;
+  --bg:#F0F0F0;--surface:#FFFFFF;--surface2:#F8F8F8;
+  --text:#333333;--text2:#666666;--text3:#999999;
+  --border:#E0E0E0;--border2:#C8C8C8;
+  --font:'Nunito',sans-serif;--mono:'JetBrains Mono',monospace;
+  --rad:6px;--shadow:0 1px 4px rgba(0,0,0,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+
+/* ── TOPBAR ── */
+.topbar{background:var(--yellow);height:56px;display:flex;align-items:center;padding:0 20px;gap:14px;position:sticky;top:0;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{width:34px;height:34px;background:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900;color:var(--blue);font-family:var(--font)}
+.logo-text{font-size:21px;font-weight:900;color:var(--text);letter-spacing:-.5px}
+.logo-badge{font-size:9px;font-weight:800;background:var(--blue);color:#fff;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.06em;margin-left:4px}
+.nav-tabs{display:flex;gap:3px;margin-left:auto}
+.nav-tab{padding:7px 16px;border:none;border-radius:var(--rad);font-size:12px;font-weight:800;cursor:pointer;font-family:var(--font);color:rgba(51,51,51,.75);background:rgba(0,0,0,.1);transition:all .15s;letter-spacing:.02em;display:flex;align-items:center;gap:5px}
+.nav-tab:hover{background:rgba(0,0,0,.18)}
+.nav-tab.active{background:var(--blue);color:#fff}
+.sync-info{display:flex;align-items:center;gap:5px;background:rgba(0,0,0,.1);padding:4px 10px;border-radius:12px;font-size:10px;font-weight:700;color:rgba(51,51,51,.7);margin-left:6px}
+.sdot{width:6px;height:6px;border-radius:50%;background:var(--text3)}
+.sdot.ok{background:var(--green)}.sdot.syncing{background:var(--orange);animation:pulse .7s infinite}.sdot.err{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── SECTION SHELL ── */
+.section{display:none;height:calc(100vh - 56px);overflow:hidden}
+.section.active{display:flex}
+
+/* ═══════════════════════════════════════════════════════════
+   TAB 1: CHAT
+═══════════════════════════════════════════════════════════ */
+#tab-chat{flex-direction:column}
+.chat-wrap{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:14px}
+.chat-wrap::-webkit-scrollbar{width:4px}
+.chat-wrap::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.msg{display:flex;gap:10px;animation:fadeUp .2s ease}
+.msg.user{flex-direction:row-reverse}
+.av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0}
+.msg.agent .av{background:var(--yellow);color:var(--text)}
+.msg.user .av{background:var(--blue);color:#fff;font-size:11px}
+.bubble{padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.7;max-width:calc(100% - 50px)}
+.msg.agent .bubble{background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:4px 12px 12px 12px;box-shadow:var(--shadow)}
+.msg.user .bubble{background:var(--blue);color:#fff;border-radius:12px 4px 12px 12px}
+.bubble pre{font-family:var(--mono);font-size:11px;background:#1e1e1e;color:#d4d4d4;padding:10px 12px;border-radius:var(--rad);margin:8px 0;overflow-x:auto}
+.bubble code{font-family:var(--mono);font-size:11px;background:rgba(52,131,250,.12);padding:1px 5px;border-radius:3px;color:var(--blue-dk)}
+.bubble strong{color:var(--blue-dk);font-weight:800}
+.quick-row{display:flex;flex-wrap:wrap;gap:6px;padding:0 24px 8px}
+.qbtn{padding:6px 13px;border:1.5px solid var(--border2);border-radius:20px;font-size:11px;font-weight:700;color:var(--text2);background:var(--surface);cursor:pointer;font-family:var(--font);transition:all .12s}
+.qbtn:hover{border-color:var(--blue);color:var(--blue)}
+.chat-input-area{padding:12px 24px 18px;border-top:1px solid var(--border);background:var(--surface);display:flex;gap:8px}
+.chat-input{flex:1;background:var(--surface2);border:1.5px solid var(--border2);border-radius:22px;padding:9px 16px;font-size:13px;color:var(--text);font-family:var(--font);outline:none;resize:none;min-height:40px;max-height:120px;transition:border .15s}
+.chat-input:focus{border-color:var(--blue)}
+.send-btn{padding:9px 20px;background:var(--blue);border:none;border-radius:22px;font-size:13px;font-weight:800;color:#fff;cursor:pointer;font-family:var(--font);transition:opacity .12s;flex-shrink:0}
+.send-btn:hover{opacity:.88}
+.send-btn:disabled{opacity:.35;cursor:not-allowed}
+.spin{width:14px;height:14px;border:2px solid rgba(52,131,250,.3);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;display:inline-block}
+
+/* ═══════════════════════════════════════════════════════════
+   TAB 2: TAREFAS
+═══════════════════════════════════════════════════════════ */
+#tab-tasks{gap:0}
+.tasks-sidebar{width:300px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.tasks-main{flex:1;overflow-y:auto;padding:20px 24px}
+.tasks-main::-webkit-scrollbar{width:4px}
+.tasks-main::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.ts-header{padding:14px 16px;border-bottom:1px solid var(--border)}
+.ts-header h3{font-size:14px;font-weight:800;color:var(--text);margin-bottom:8px}
+.ts-prog-label{display:flex;justify-content:space-between;font-size:11px;color:var(--text3);font-weight:700;margin-bottom:5px}
+.ts-prog-track{height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+.ts-prog-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--green),#00c860);transition:width .4s}
+.ts-list{flex:1;overflow-y:auto;padding:8px}
+.ts-list::-webkit-scrollbar{width:3px}
+.sprint-hdr{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--rad);cursor:pointer;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);transition:background .12s;user-select:none}
+.sprint-hdr:hover{background:var(--surface2)}
+.sbadge{width:20px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;flex-shrink:0}
+.sb1{background:rgba(245,158,11,.2);color:#b45309}
+.sb2{background:rgba(52,131,250,.2);color:var(--blue-dk)}
+.sb3{background:rgba(160,32,240,.2);color:#7c3aed}
+.sb4{background:rgba(0,166,80,.2);color:#15803d}
+.sprint-count{margin-left:auto;font-size:10px;color:var(--text3)}
+.task-items{padding:3px 3px 3px 12px;display:flex;flex-direction:column;gap:1px}
+.ti{display:flex;align-items:flex-start;gap:7px;padding:6px 8px;border-radius:var(--rad);cursor:pointer;transition:background .1s;font-size:11px;color:var(--text2);line-height:1.4;border-left:2px solid transparent}
+.ti:hover{background:var(--surface2);color:var(--text)}
+.ti.sel{background:#EEF4FF;color:var(--blue);border-left-color:var(--blue)}
+.ti.done{color:var(--text3)}.ti.done .ti-title{text-decoration:line-through}
+.cb{width:14px;height:14px;border-radius:3px;border:1.5px solid var(--border2);flex-shrink:0;margin-top:1px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;transition:all .12s}
+.cb.chk{background:var(--green);border-color:var(--green);color:#fff}
+
+/* Task Detail */
+.task-detail-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rad2);padding:18px 20px;margin-bottom:14px;box-shadow:var(--shadow)}
+.prio-tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin-right:6px}
+.pt-crit{background:rgba(240,78,55,.12);color:var(--red)}
+.pt-alto{background:rgba(255,119,51,.12);color:var(--orange)}
+.pt-med{background:rgba(52,131,250,.12);color:var(--blue)}
+.det-title{font-size:17px;font-weight:800;margin:10px 0 6px;color:var(--text);line-height:1.3}
+.det-desc{font-size:13px;color:var(--text2);line-height:1.7}
+.steps-lbl{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);margin-bottom:10px}
+.step-row{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:12px;color:var(--text2);line-height:1.55}
+.step-row:last-child{border:none}
+.sn{width:20px;height:20px;border-radius:50%;background:var(--blue);color:#fff;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.ask-ai-btn{padding:9px 16px;background:var(--yellow);border:none;border-radius:var(--rad);font-size:12px;font-weight:800;color:var(--text);cursor:pointer;font-family:var(--font);display:inline-flex;align-items:center;gap:6px;margin-top:12px;transition:opacity .12s}
+.ask-ai-btn:hover{opacity:.85}
+.done-toggle{padding:8px 16px;border-radius:var(--rad);font-size:12px;font-weight:800;cursor:pointer;font-family:var(--font);transition:all .12s;border:1.5px solid}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;color:var(--text3);text-align:center;padding:40px}
+
+/* ═══════════════════════════════════════════════════════════
+   TAB 3: DOCUMENTAÇÃO
+═══════════════════════════════════════════════════════════ */
+#tab-docs{gap:0}
+.docs-nav{width:240px;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:14px 10px;flex-shrink:0}
+.docs-nav::-webkit-scrollbar{width:3px}
+.docs-nav::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.docs-nav-group{margin-bottom:14px}
+.docs-nav-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);padding:0 8px;margin-bottom:5px}
+.docs-nav-item{display:block;padding:7px 10px;border-radius:var(--rad);font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;transition:all .12s;border:none;background:none;font-family:var(--font);width:100%;text-align:left}
+.docs-nav-item:hover{background:var(--surface2);color:var(--text)}
+.docs-nav-item.active{background:#EEF4FF;color:var(--blue);font-weight:800}
+.docs-content{flex:1;overflow-y:auto;padding:28px 32px}
+.docs-content::-webkit-scrollbar{width:4px}
+.docs-content::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.doc-section{display:none}.doc-section.active{display:block}
+.doc-h1{font-size:24px;font-weight:900;color:var(--text);margin-bottom:6px;line-height:1.2}
+.doc-h1 span{color:var(--blue)}
+.doc-lead{font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid var(--yellow)}
+.doc-h2{font-size:16px;font-weight:800;color:var(--text);margin:22px 0 10px;display:flex;align-items:center;gap:8px}
+.doc-h2::before{content:'';display:block;width:4px;height:18px;background:var(--blue);border-radius:2px;flex-shrink:0}
+.doc-h3{font-size:13px;font-weight:800;color:var(--text2);margin:14px 0 6px;text-transform:uppercase;letter-spacing:.05em}
+.doc-p{font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:10px}
+.doc-step{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);align-items:flex-start}
+.doc-step:last-child{border:none}
+.doc-step-n{width:26px;height:26px;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.doc-step-body{flex:1}
+.doc-step-title{font-size:13px;font-weight:800;color:var(--text);margin-bottom:3px}
+.doc-step-desc{font-size:12px;color:var(--text2);line-height:1.6}
+.doc-code{font-family:var(--mono);font-size:11px;background:#1e1e1e;color:#d4d4d4;padding:12px 14px;border-radius:var(--rad);margin:10px 0;overflow-x:auto;line-height:1.6}
+.doc-code .cm{color:#6a9955}.doc-code .kw{color:#569cd6}.doc-code .str{color:#ce9178}.doc-code .fn{color:#dcdcaa}
+.info-box{background:#EEF4FF;border:1px solid rgba(52,131,250,.3);border-radius:var(--rad);padding:12px 14px;margin:10px 0;font-size:12px;color:var(--text2);line-height:1.6}
+.info-box strong{color:var(--blue);font-weight:800}
+.warn-box{background:#FFF8E6;border:1px solid rgba(240,200,0,.5);border-radius:var(--rad);padding:12px 14px;margin:10px 0;font-size:12px;color:#7a5a00;line-height:1.6}
+.tip-box{background:#E8F8EF;border:1px solid rgba(0,166,80,.3);border-radius:var(--rad);padding:12px 14px;margin:10px 0;font-size:12px;color:#1a5c35;line-height:1.6}
+.doc-table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12px}
+.doc-table th{background:var(--text);color:#fff;padding:8px 10px;text-align:left;font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+.doc-table td{padding:8px 10px;border-bottom:1px solid var(--border);color:var(--text2)}
+.doc-table tr:nth-child(even) td{background:var(--surface2)}
+.doc-tag{display:inline-block;padding:1px 7px;border-radius:8px;font-size:10px;font-weight:800}
+.tag-y{background:rgba(255,230,0,.3);color:#7a5a00}
+.tag-b{background:rgba(52,131,250,.15);color:var(--blue-dk)}
+.tag-g{background:rgba(0,166,80,.15);color:#15803d}
+.tag-r{background:rgba(240,78,55,.15);color:var(--red)}
+
+/* PARAM EDITOR */
+.param-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rad2);padding:18px 20px;margin-bottom:14px;box-shadow:var(--shadow)}
+.param-title{font-size:14px;font-weight:800;color:var(--text);margin-bottom:4px}
+.param-desc{font-size:12px;color:var(--text3);margin-bottom:14px}
+.param-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.param-field{display:flex;flex-direction:column;gap:4px}
+.param-label{font-size:11px;font-weight:700;color:var(--text2)}
+.param-input{border:1.5px solid var(--border2);border-radius:var(--rad);padding:7px 10px;font-size:13px;font-weight:700;color:var(--text);font-family:var(--font);outline:none;transition:border .15s;background:var(--surface)}
+.param-input:focus{border-color:var(--blue)}
+.param-unit{font-size:10px;color:var(--text3);margin-top:2px}
+.param-save-btn{padding:10px 20px;background:var(--yellow);border:none;border-radius:var(--rad);font-size:13px;font-weight:800;color:var(--text);cursor:pointer;font-family:var(--font);transition:opacity .12s;margin-top:4px}
+.param-save-btn:hover{opacity:.85}
+.verdict-preview{background:var(--surface2);border-radius:var(--rad);padding:14px;margin-top:14px;font-size:12px}
+.vp-row{display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--border)}
+.vp-row:last-child{border:none}
+.vp-color{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+/* ═══════════════════════════════════════════════════════════
+   TAB 4: ROTINA SEMANAL
+═══════════════════════════════════════════════════════════ */
+#tab-rotina{gap:0;flex-direction:column;overflow:hidden}
+.rotina-header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:14px}
+.rotina-header h2{font-size:16px;font-weight:900}
+.week-badge{background:var(--yellow);padding:4px 12px;border-radius:12px;font-size:11px;font-weight:800;color:var(--text)}
+.rotina-prog{display:flex;align-items:center;gap:8px;margin-left:auto;font-size:11px;font-weight:700;color:var(--text2)}
+.reset-btn{padding:6px 14px;border:1.5px solid var(--border2);border-radius:var(--rad);font-size:11px;font-weight:700;color:var(--text2);background:none;cursor:pointer;font-family:var(--font);transition:all .12s}
+.reset-btn:hover{border-color:var(--red);color:var(--red)}
+.rotina-body{flex:1;overflow-y:auto;padding:20px 24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;align-content:start}
+.rotina-body::-webkit-scrollbar{width:4px}
+.rotina-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.day-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rad2);overflow:hidden;box-shadow:var(--shadow)}
+.day-header{padding:12px 14px;font-size:13px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px}
+.day-icon{font-size:16px}
+.day-tag{margin-left:auto;font-size:9px;font-weight:800;background:rgba(255,255,255,.25);padding:2px 7px;border-radius:8px}
+.dh-seg{background:#3483FA}.dh-ter{background:#9333EA}.dh-qua{background:#059669}.dh-qui{background:#DC2626}.dh-sex{background:#D97706}.dh-sab{background:#0891B2}.dh-dom{background:#475569}
+.day-tasks{padding:8px 0}
+.dt{display:flex;align-items:flex-start;gap:9px;padding:8px 14px;transition:background .1s;cursor:pointer}
+.dt:hover{background:var(--surface2)}
+.dt-cb{width:16px;height:16px;border-radius:4px;border:2px solid var(--border2);flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;transition:all .12s;cursor:pointer}
+.dt-cb.done{background:var(--green);border-color:var(--green);color:#fff}
+.dt-body{flex:1}
+.dt-title{font-size:12px;font-weight:700;color:var(--text);line-height:1.35;transition:color .12s}
+.dt-title.done{text-decoration:line-through;color:var(--text3)}
+.dt-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.dt-prio{font-size:9px;font-weight:800;padding:1px 6px;border-radius:6px;margin-left:4px;display:inline-block}
+.prio-essencial{background:rgba(240,78,55,.12);color:var(--red)}
+.prio-importante{background:rgba(255,119,51,.12);color:var(--orange)}
+.prio-bom-ter{background:rgba(52,131,250,.12);color:var(--blue)}
+.day-metric{padding:8px 14px;background:var(--surface2);border-top:1px solid var(--border);font-size:11px;color:var(--text3);display:flex;justify-content:space-between;align-items:center}
+.day-prog-bar{height:3px;background:var(--border);border-radius:2px;margin:0 14px 8px;overflow:hidden}
+.day-prog-fill{height:100%;border-radius:2px;background:var(--green);transition:width .3s}
+</style>
+</head>
+<body>
+
+<!-- ── TOPBAR ── -->
+<nav class="topbar">
+  <div class="logo">
+    <div class="logo-icon">📡</div>
+    <span class="logo-text">Radar</span>
+    <span class="logo-badge">Agente de Produto</span>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showTab('chat')">💬 Chat IA</button>
+    <button class="nav-tab" onclick="showTab('tasks')">✅ Tarefas</button>
+    <button class="nav-tab" onclick="showTab('docs')">📚 Documentação</button>
+    <button class="nav-tab" onclick="showTab('rotina')">📅 Rotina Semanal</button>
+  </div>
+  <div class="sync-info"><div class="sdot" id="sdot"></div><span id="stxt">conectando...</span></div>
+</nav>
+
+<!-- ════════════════════════════════════════════
+     TAB 1: CHAT
+════════════════════════════════════════════ -->
+<div class="section active" id="tab-chat">
+  <div class="chat-wrap" id="chat-msgs"></div>
+  <div class="quick-row" id="quick-row"></div>
+  <div class="chat-input-area">
+    <textarea class="chat-input" id="cinput" placeholder="Pergunte sobre qualquer tarefa, decisão técnica ou estratégia do Radar..." rows="1"
+      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}"></textarea>
+    <button class="send-btn" id="sbtn" onclick="sendChat()">Enviar</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     TAB 2: TAREFAS
+════════════════════════════════════════════ -->
+<div class="section" id="tab-tasks">
+  <aside class="tasks-sidebar">
+    <div class="ts-header">
+      <h3>Sprints do Radar</h3>
+      <div class="ts-prog-label"><span>Progresso geral</span><span id="tpct">0%</span></div>
+      <div class="ts-prog-track"><div class="ts-prog-fill" id="tpfill" style="width:0%"></div></div>
+    </div>
+    <div class="ts-list" id="ts-list"></div>
+  </aside>
+  <div class="tasks-main" id="tasks-main">
+    <div class="empty-state"><div style="font-size:40px;opacity:.3">📋</div><div style="font-size:15px;font-weight:800">Selecione uma tarefa</div><div style="font-size:12px">Clique em qualquer item na sidebar</div></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     TAB 3: DOCUMENTAÇÃO
+════════════════════════════════════════════ -->
+<div class="section" id="tab-docs">
+  <nav class="docs-nav">
+    <div class="docs-nav-group">
+      <div class="docs-nav-label">Produto</div>
+      <button class="docs-nav-item active" onclick="showDoc('visao')">🎯 Visão geral</button>
+      <button class="docs-nav-item" onclick="showDoc('mercado')">📊 Mercado e concorrentes</button>
+      <button class="docs-nav-item" onclick="showDoc('modulos')">🧩 Módulos do app</button>
+    </div>
+    <div class="docs-nav-group">
+      <div class="docs-nav-label">Técnico</div>
+      <button class="docs-nav-item" onclick="showDoc('worker')">⚙️ Worker ML multi-tenant</button>
+      <button class="docs-nav-item" onclick="showDoc('api-publica')">🌐 API pública ML</button>
+      <button class="docs-nav-item" onclick="showDoc('api-oauth')">🔑 OAuth ML (1 clique)</button>
+      <button class="docs-nav-item" onclick="showDoc('supabase')">🗄️ Supabase setup</button>
+    </div>
+    <div class="docs-nav-group">
+      <div class="docs-nav-label">Inteligência</div>
+      <button class="docs-nav-item" onclick="showDoc('params')">🎛️ Parâmetros do Veredicto</button>
+      <button class="docs-nav-item" onclick="showDoc('ia-prompt')">🤖 Prompts da IA</button>
+    </div>
+    <div class="docs-nav-group">
+      <div class="docs-nav-label">Negócio</div>
+      <button class="docs-nav-item" onclick="showDoc('planos')">💰 Planos e preços</button>
+      <button class="docs-nav-item" onclick="showDoc('lancamento')">🚀 Checklist de lançamento</button>
+    </div>
+  </nav>
+
+  <div class="docs-content">
+
+    <!-- VISÃO GERAL -->
+    <div class="doc-section active" id="doc-visao">
+      <div class="doc-h1">Radar — <span>Inteligência de Mercado com IA</span></div>
+      <div class="doc-lead">Em 30 segundos, o seller sabe se vale entrar em um nicho, por que, e o que fazer primeiro. O Radar combina dados reais da API do Mercado Livre com inteligência artificial para entregar o que hoje leva 3-4 horas de trabalho manual.</div>
+      <div class="doc-h2">O problema que resolve</div>
+      <div class="doc-p">Sellers do ML passam horas pesquisando nichos manualmente — contando vendedores, anotando preços, tentando estimar volume. Nenhuma ferramenta existente interpreta os dados: todas mostram números, mas ninguém entrega um veredicto claro com justificativa.</div>
+      <div class="info-box"><strong>Proposta de valor única:</strong> A IA não só mostra dados — ela interpreta e entrega: "Vale entrar neste nicho porque... mas cuidado com..." — com score, faixa de preço vencedora e plano de ação.</div>
+      <div class="doc-h2">Stack tecnológica</div>
+      <table class="doc-table">
+        <tr><th>Camada</th><th>Tecnologia</th><th>Função</th></tr>
+        <tr><td>Frontend</td><td>HTML único (Fase 1) → React (Fase 2)</td><td>Interface responsiva, desktop e mobile</td></tr>
+        <tr><td>Worker</td><td>Cloudflare Workers Paid ($5/mês)</td><td>OAuth ML multi-tenant, refresh automático, sync</td></tr>
+        <tr><td>Banco</td><td>Supabase Pro ($25/mês)</td><td>Tokens por seller, pesquisas, financeiro</td></tr>
+        <tr><td>IA</td><td>Claude API (Anthropic)</td><td>Análise de mercado, diagnóstico, títulos</td></tr>
+        <tr><td>API pública</td><td>ML Search API (grátis)</td><td>Dados de nicho sem autenticação</td></tr>
+        <tr><td>API privada</td><td>ML OAuth API</td><td>Dados da conta do seller</td></tr>
+        <tr><td>Deploy</td><td>Cloudflare Pages</td><td>Hosting — radar.com.br</td></tr>
+      </table>
+      <div class="doc-h2">Repositório e deploy</div>
+      <div class="doc-code">GitHub: SellerDNC/dnc-little
+Deploy: Cloudflare Pages → radar.com.br (futuro)
+Temp: dnc-little.pages.dev
+Branch main → deploy automático em cada push</div>
+    </div>
+
+    <!-- MERCADO -->
+    <div class="doc-section" id="doc-mercado">
+      <div class="doc-h1">Mercado e <span>Concorrentes</span></div>
+      <div class="doc-lead">3,3 milhões de sellers ativos no ML Brasil. 1 milhão de famílias que vivem do ML como renda principal. GMV crescendo 30% ao ano. Nenhum concorrente combina API real + IA interpretativa + preço acessível.</div>
+      <div class="doc-h2">Tamanho do mercado</div>
+      <table class="doc-table">
+        <tr><th>Métrica</th><th>Número</th></tr>
+        <tr><td>Sellers ativos no ML Brasil</td><td><strong>3,3 milhões</strong></td></tr>
+        <tr><td>Famílias que vivem do ML</td><td><strong>1 milhão+</strong></td></tr>
+        <tr><td>CNPJs abertos por sellers (2 anos)</td><td><strong>200 mil+</strong></td></tr>
+        <tr><td>Crescimento GMV Brasil Q1 2025</td><td><strong>30% YoY</strong></td></tr>
+        <tr><td>TAM total</td><td><strong>R$970M/ano</strong></td></tr>
+        <tr><td>SAM alcançável (R$5-50k/mês)</td><td><strong>R$87M/ano</strong></td></tr>
+        <tr><td>Meta SOM ano 1</td><td><strong>R$1,7M/ano</strong></td></tr>
+      </table>
+      <div class="doc-h2">Mapa de concorrentes</div>
+      <table class="doc-table">
+        <tr><th>Concorrente</th><th>Preço</th><th>Pesquisa nicho</th><th>IA interpretativa</th><th>Fin. PJ/PF</th></tr>
+        <tr><td><strong>Real Trends</strong></td><td>R$200+</td><td><span class="doc-tag tag-y">parcial</span></td><td><span class="doc-tag tag-r">não</span></td><td><span class="doc-tag tag-r">não</span></td></tr>
+        <tr><td><strong>Letzee</strong></td><td>R$79-199</td><td><span class="doc-tag tag-r">não</span></td><td><span class="doc-tag tag-y">parcial</span></td><td><span class="doc-tag tag-r">não</span></td></tr>
+        <tr><td><strong>HubControl</strong></td><td>R$47-197</td><td><span class="doc-tag tag-r">não</span></td><td><span class="doc-tag tag-r">não</span></td><td><span class="doc-tag tag-r">não</span></td></tr>
+        <tr><td><strong>Bling ERP</strong></td><td>R$55-650</td><td><span class="doc-tag tag-r">não</span></td><td><span class="doc-tag tag-r">não</span></td><td><span class="doc-tag tag-y">parcial</span></td></tr>
+        <tr><td><strong style="color:var(--blue)">Radar</strong></td><td><strong style="color:var(--green)">R$0-59</strong></td><td><span class="doc-tag tag-g">core</span></td><td><span class="doc-tag tag-g">core</span></td><td><span class="doc-tag tag-g">único</span></td></tr>
+      </table>
+    </div>
+
+    <!-- MÓDULOS -->
+    <div class="doc-section" id="doc-modulos">
+      <div class="doc-h1">Módulos do <span>Radar</span></div>
+      <div class="doc-lead">6 módulos integrados. O Radar de Mercado é o core — os outros são diferenciais complementares que retêm o seller na plataforma.</div>
+      <div class="doc-h2">1. Radar de Mercado (core)</div>
+      <div class="doc-p">Seller digita uma keyword. Sistema busca dados reais (API pública) + dados da conta (OAuth). IA processa e entrega em menos de 15 segundos:</div>
+      <div class="doc-step"><div class="doc-step-n">1</div><div class="doc-step-body"><div class="doc-step-title">Volume do mercado</div><div class="doc-step-desc">Total de anúncios ativos, sellers únicos, itens vendidos estimados</div></div></div>
+      <div class="doc-step"><div class="doc-step-n">2</div><div class="doc-step-body"><div class="doc-step-title">Faixa de preço vencedora</div><div class="doc-step-desc">Onde está concentrado o volume de vendas. Min/Max/Média/Moda.</div></div></div>
+      <div class="doc-step"><div class="doc-step-n">3</div><div class="doc-step-body"><div class="doc-step-title">Nível de concorrência</div><div class="doc-step-desc">Baseado nos parâmetros configuráveis de cada seller (ver aba Parâmetros)</div></div></div>
+      <div class="doc-step"><div class="doc-step-n">4</div><div class="doc-step-body"><div class="doc-step-title">Seu posicionamento</div><div class="doc-step-desc">Se você já vende no nicho: sua posição vs top 10, seu preço vs mercado</div></div></div>
+      <div class="doc-step"><div class="doc-step-n">5</div><div class="doc-step-body"><div class="doc-step-title">Veredicto com justificativa</div><div class="doc-step-desc">Vale entrar / Oportunidade com ressalvas / Evite — com texto explicando o porquê</div></div></div>
+      <div class="doc-h2">2. Diagnóstico de Anúncio</div>
+      <div class="doc-p">Score 0-100 com plano de ação prioritizado. Analisa título, fotos, ficha técnica, preço e envio vs concorrentes reais.</div>
+      <div class="doc-h2">3. Calculadora de Precificação</div>
+      <div class="doc-p">Clássico/Premium, DAS por faixa RBT12, ADS%, frete rateado, ICMS-ST, PDV sugerido e simulador de cenários.</div>
+      <div class="doc-h2">4. Financeiro PJ vs PF</div>
+      <div class="doc-p">Separação real entre empresa e pessoal. Nenhum concorrente faz isso. Dashboard dual com pro-labore e fluxo de caixa.</div>
+      <div class="doc-h2">5. Calendário do Seller</div>
+      <div class="doc-p">Obrigações MEI automáticas + campanhas ML sazonais pré-carregadas. Vencimentos com cores por área.</div>
+      <div class="doc-h2">6. Gerador de Títulos ML</div>
+      <div class="doc-p">Keywords reais da API pública. 8 variações otimizadas com score de relevância estimado.</div>
+    </div>
+
+    <!-- WORKER -->
+    <div class="doc-section" id="doc-worker">
+      <div class="doc-h1">Worker ML <span>Multi-Tenant</span></div>
+      <div class="doc-lead">O Worker é o coração da integração ML. Precisa ser reescrito do zero para suportar qualquer seller — não apenas a conta do André. Roda no Cloudflare Workers Paid ($5/mês), eliminando o timeout de 30s.</div>
+      <div class="warn-box">⚠️ <strong>Primeiro passo crítico:</strong> Sem o Worker multi-tenant funcionando, nenhum outro módulo que dependa de dados reais do ML funciona.</div>
+      <div class="doc-h2">Estrutura do Worker</div>
+      <div class="doc-code"><span class="cm">// Endpoints necessários</span>
+GET  /auth       → inicia fluxo OAuth (redirect para ML)
+GET  /callback   → troca code por tokens e salva no Supabase
+POST /refresh    → renova access_token usando refresh_token
+GET  /orders     → pedidos do seller (chunked, 30 dias por vez)
+GET  /listings   → anúncios do seller (lista com paginação)
+GET  /market     → busca API pública ML (sem auth necessária)
+GET  /me         → dados do perfil do seller
+GET  /item/:id   → dados completos de um anúncio específico</div>
+
+      <div class="doc-h2">Passo a passo — criar o Worker</div>
+      <div class="doc-step"><div class="doc-step-n">1</div><div class="doc-step-body"><div class="doc-step-title">Criar Worker no Cloudflare</div><div class="doc-step-desc">dash.cloudflare.com → Workers & Pages → Create → nome: radar-ml-worker<br>Upgrade para Paid ($5/mês) antes de publicar</div></div></div>
+      <div class="doc-step"><div class="doc-step-n">2</div><div class="doc-step-body"><div class="doc-step-title">Variáveis de ambiente (secrets)</div><div class="doc-step-desc">Settings → Variables → adicionar:<br>ML_CLIENT_ID = seu client_id do DevCenter<br>ML_CLIENT_SECRET = seu client_secret<br>SUPABASE_URL = https://zyidoasvvutddutyezwj.supabase.co<br>SUPABASE_SERVICE_KEY = (service role key, NÃO a anon key)</div></div></div>
+      <div class="doc-step"><div class="doc-step-n">3</div><div class="doc-step-body"><div class="doc-step-title">Adicionar redirect URI no ML DevCenter</div><div class="doc-step-desc">developers.mercadolivre.com.br → seu app → Editar → URIs de redirect → adicionar:<br>https://radar-ml-worker.seu-user.workers.dev/callback</div></div></div>
+      <div class="doc-step"><div class="doc-step-n">4</div><div class="doc-step-body"><div class="doc-step-title">Lógica de refresh automático</div><div class="doc-step-desc">Antes de cada chamada ML, verificar se expires_at &lt; agora + 30min. Se sim, chamar /oauth/token com grant_type=refresh_token antes de prosseguir.</div></div></div>
+      <div class="doc-step"><div class="doc-step-n">5</div><div class="doc-step-body"><div class="doc-step-title">Chunked sync de pedidos</div><div class="doc-step-desc">Para buscar 90 dias: dividir em chunks de 30 dias. Cada chunk = 1 chamada ao Worker. Salvar no Supabase incrementalmente. Worker Paid = sem timeout.</div></div></div>
+      <div class="doc-code"><span class="cm">// Estrutura básica do Worker (index.js)</span>
+<span class="kw">export default</span> {
+  <span class="kw">async</span> <span class="fn">fetch</span>(request, env) {
+    <span class="kw">const</span> url = <span class="kw">new</span> URL(request.url);
+    <span class="kw">const</span> path = url.pathname;
+    <span class="cm">// Roteamento</span>
+    <span class="kw">if</span> (path === <span class="str">'/auth'</span>)     <span class="kw">return</span> handleAuth(url, env);
+    <span class="kw">if</span> (path === <span class="str">'/callback'</span>) <span class="kw">return</span> handleCallback(url, env);
+    <span class="kw">if</span> (path === <span class="str">'/orders'</span>)   <span class="kw">return</span> handleOrders(url, env);
+    <span class="kw">if</span> (path === <span class="str">'/market'</span>)   <span class="kw">return</span> handleMarket(url, env);
+    <span class="kw">return new</span> Response(<span class="str">'Radar ML Worker'</span>, {status:200});
+  }
+};
+
+<span class="kw">async function</span> <span class="fn">handleAuth</span>(url, env) {
+  <span class="kw">const</span> sellerId = url.searchParams.get(<span class="str">'seller_id'</span>);
+  <span class="kw">const</span> authUrl = <span class="str">`https://auth.mercadolivre.com.br/authorization?</span>
+<span class="str">    response_type=code&client_id=${env.ML_CLIENT_ID}</span>
+<span class="str">    &redirect_uri=${env.REDIRECT_URI}&state=${sellerId}`</span>;
+  <span class="kw">return</span> Response.redirect(authUrl, 302);
+}</div>
+    </div>
+
+    <!-- API PÚBLICA -->
+    <div class="doc-section" id="doc-api-publica">
+      <div class="doc-h1">API Pública <span>Mercado Livre</span></div>
+      <div class="doc-lead">Dados do mercado disponíveis SEM autenticação. Qualquer busca, qualquer nicho, sem OAuth. É o que alimenta o Radar de Mercado para todos os sellers — conectados ou não.</div>
+      <div class="tip-box">✅ <strong>Zero atrito:</strong> Esta API não requer token, OAuth nem cadastro. Qualquer seller consegue ver dados de mercado antes mesmo de criar uma conta no Radar.</div>
+      <div class="doc-h2">Endpoints principais</div>
+      <div class="doc-step"><div class="doc-step-n">1</div><div class="doc-step-body"><div class="doc-step-title">Busca de produtos por keyword</div><div class="doc-step-desc">Retorna lista de anúncios com preços, sellers, tipo de envio e métricas estimadas</div></div></div>
+      <div class="doc-code">GET https://api.mercadolibre.com/sites/MLB/search?q={keyword}&limit=50
+<span class="cm">// Exemplo:</span>
+https://api.mercadolibre.com/sites/MLB/search?q=alicate+pesca&limit=50
+
+<span class="cm">// Resposta (resumida):</span>
+{
+  <span class="str">"paging"</span>: { <span class="str">"total"</span>: 3847, <span class="str">"offset"</span>: 0 },
+  <span class="str">"results"</span>: [{
+    <span class="str">"id"</span>: <span class="str">"MLB123456"</span>,
+    <span class="str">"title"</span>: <span class="str">"Alicate de Pesca Profissional"</span>,
+    <span class="str">"price"</span>: 39.90,
+    <span class="str">"seller"</span>: { <span class="str">"id"</span>: 789, <span class="str">"nickname"</span>: <span class="str">"TOPFISHING"</span> },
+    <span class="str">"shipping"</span>: { <span class="str">"free_shipping"</span>: true, <span class="str">"logistic_type"</span>: <span class="str">"fulfillment"</span> },
+    <span class="str">"sold_quantity"</span>: 1240
+  }]
+}</div>
+      <div class="doc-step"><div class="doc-step-n">2</div><div class="doc-step-body"><div class="doc-step-title">Dados de um anúncio específico</div><div class="doc-step-desc">Detalhes completos: atributos, fotos, descrição, histórico de preço</div></div></div>
+      <div class="doc-code">GET https://api.mercadolibre.com/items/{MLB_ID}
+GET https://api.mercadolibre.com/items/{MLB_ID}/descriptions
+GET https://api.mercadolibre.com/items/{MLB_ID}/reviews/rating_levels</div>
+      <div class="doc-step"><div class="doc-step-n">3</div><div class="doc-step-body"><div class="doc-step-title">Tendências de busca por categoria</div><div class="doc-step-desc">Keywords mais buscadas — alimenta o Gerador de Títulos</div></div></div>
+      <div class="doc-code">GET https://api.mercadolibre.com/trends/MLB/{CATEGORY_ID}</div>
+      <div class="doc-h2">O que extrair para o Radar de Mercado</div>
+      <table class="doc-table">
+        <tr><th>Dado</th><th>Como calcular</th></tr>
+        <tr><td>Total de anúncios</td><td>paging.total</td></tr>
+        <tr><td>Sellers únicos</td><td>Set de seller.id nos resultados</td></tr>
+        <tr><td>Preço médio</td><td>Média de results[].price</td></tr>
+        <tr><td>% Full/Flex</td><td>Contar logistic_type=fulfillment/crossdocking</td></tr>
+        <tr><td>% Frete grátis</td><td>Contar free_shipping=true</td></tr>
+        <tr><td>Vendas estimadas top seller</td><td>Max de sold_quantity nos resultados</td></tr>
+      </table>
+    </div>
+
+    <!-- OAUTH -->
+    <div class="doc-section" id="doc-api-oauth">
+      <div class="doc-h1">OAuth ML — <span>1 Clique para Qualquer Seller</span></div>
+      <div class="doc-lead">O mesmo app registrado no ML DevCenter serve para qualquer seller autorizar. 1 clique → ML pede autorização → seller aceita → Radar tem acesso aos dados privados.</div>
+      <div class="doc-h2">Fluxo completo passo a passo</div>
+      <div class="doc-step"><div class="doc-step-n">1</div><div class="doc-step-body"><div class="doc-step-title">Seller clica "Conectar Mercado Livre"</div><div class="doc-step-desc">Frontend redireciona para o Worker /auth?seller_id={uuid_do_seller}</div></div></div>
+      <div class="doc-step"><div class="doc-step-n">2</div><div class="doc-step-body"><div class="doc-step-title">Worker redireciona para página oficial do ML</div><div class="doc-step-desc">auth.mercadolivre.com.br — página que o seller já conhece e confia</div></div></div>
+      <div class="doc-step"><div class="doc-step-n">3</div><div class="doc-step-body"><div class="doc-step-title">Seller faz login e clica "Permitir"</div><div class="doc-step-desc">ML redireciona de volta para o Worker /callback com ?code=XYZ&state=seller_id</div></div></div>
+      <div class="doc-step"><div class="doc-step-n">4</div><div class="doc-step-body"><div class="doc-step-title">Worker troca o code por tokens</div><div class="doc-step-desc">POST para api.mercadolibre.com/oauth/token com client_id + secret + code</div></div></div>
+      <div class="doc-step"><div class="doc-step-n">5</div><div class="doc-step-body"><div class="doc-step-title">Tokens salvos no Supabase</div><div class="doc-step-desc">{ seller_id, ml_user_id, access_token, refresh_token, expires_at }</div></div></div>
+      <div class="doc-step"><div class="doc-step-n">6</div><div class="doc-step-body"><div class="doc-step-title">Seller volta para o Radar com dados carregados</div><div class="doc-step-desc">Worker redireciona para radar.com.br?connected=true — badge "ML Conectado" aparece</div></div></div>
+      <div class="doc-step"><div class="doc-step-n">7</div><div class="doc-step-body"><div class="doc-step-title">Refresh automático a cada 6 horas</div><div class="doc-step-desc">Antes de qualquer chamada ML, Worker verifica se expires_at está próximo. Se sim, renova automaticamente. Seller nunca precisa reconectar.</div></div></div>
+      <div class="doc-code"><span class="cm">// Exchange code → tokens (no Worker)</span>
+<span class="kw">const</span> tokenRes = <span class="kw">await</span> fetch(<span class="str">'https://api.mercadolibre.com/oauth/token'</span>, {
+  method: <span class="str">'POST'</span>,
+  headers: { <span class="str">'Content-Type'</span>: <span class="str">'application/x-www-form-urlencoded'</span> },
+  body: <span class="kw">new</span> URLSearchParams({
+    grant_type: <span class="str">'authorization_code'</span>,
+    client_id: env.ML_CLIENT_ID,
+    client_secret: env.ML_CLIENT_SECRET,
+    code: authCode,
+    redirect_uri: env.REDIRECT_URI
+  })
+});
+<span class="kw">const</span> { access_token, refresh_token, expires_in, user_id } = <span class="kw">await</span> tokenRes.json();
+<span class="cm">// Salvar no Supabase:</span>
+<span class="kw">await</span> saveTokens(sellerId, access_token, refresh_token, user_id, env);</div>
+    </div>
+
+    <!-- SUPABASE -->
+    <div class="doc-section" id="doc-supabase">
+      <div class="doc-h1">Supabase <span>Setup Completo</span></div>
+      <div class="doc-lead">Banco de dados multi-tenant. Cada seller tem seus próprios dados isolados por seller_id. RLS garante que um seller nunca acessa dados de outro.</div>
+      <div class="doc-h2">SQL — criar todas as tabelas</div>
+      <div class="doc-code"><span class="cm">-- Sellers (auth gerenciado pelo Supabase Auth)</span>
+<span class="kw">CREATE TABLE</span> radar_sellers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT UNIQUE NOT NULL,
+  plan TEXT DEFAULT <span class="str">'free'</span>, <span class="cm">-- free | starter | pro</span>
+  plan_expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+<span class="cm">-- Tokens ML por seller</span>
+<span class="kw">CREATE TABLE</span> radar_tokens (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  seller_id UUID REFERENCES radar_sellers(id),
+  ml_user_id BIGINT,
+  access_token TEXT NOT NULL,
+  refresh_token TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+<span class="cm">-- Pesquisas do Radar de Mercado</span>
+<span class="kw">CREATE TABLE</span> radar_pesquisas (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  seller_id UUID REFERENCES radar_sellers(id),
+  keyword TEXT NOT NULL,
+  resultado JSONB,
+  veredicto TEXT, <span class="cm">-- vale | ressalvas | evite</span>
+  score INTEGER,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+<span class="cm">-- Financeiro (PJ e PF separados)</span>
+<span class="kw">CREATE TABLE</span> radar_contas (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  seller_id UUID REFERENCES radar_sellers(id),
+  area TEXT NOT NULL, <span class="cm">-- pj | pf</span>
+  tipo TEXT NOT NULL, <span class="cm">-- pagar | receber</span>
+  desc TEXT, valor NUMERIC, data DATE,
+  status TEXT DEFAULT <span class="str">'pendente'</span>,
+  recur TEXT, <span class="cm">-- mensal | semanal | anual</span>
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+<span class="cm">-- Parâmetros do veredicto por seller</span>
+<span class="kw">CREATE TABLE</span> radar_params (
+  seller_id UUID PRIMARY KEY REFERENCES radar_sellers(id),
+  params JSONB NOT NULL DEFAULT <span class="str">'{}'</span>,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+<span class="cm">-- RLS: cada seller vê só seus dados</span>
+<span class="kw">ALTER TABLE</span> radar_tokens <span class="kw">ENABLE ROW LEVEL SECURITY</span>;
+<span class="kw">ALTER TABLE</span> radar_pesquisas <span class="kw">ENABLE ROW LEVEL SECURITY</span>;
+<span class="kw">ALTER TABLE</span> radar_contas <span class="kw">ENABLE ROW LEVEL SECURITY</span>;
+<span class="kw">ALTER TABLE</span> radar_params <span class="kw">ENABLE ROW LEVEL SECURITY</span>;
+
+<span class="kw">CREATE POLICY</span> seller_own <span class="kw">ON</span> radar_tokens
+  <span class="kw">FOR ALL USING</span> (seller_id = auth.uid());
+<span class="cm">-- Repetir para as outras tabelas</span></div>
+    </div>
+
+    <!-- PARÂMETROS CONFIGURÁVEIS -->
+    <div class="doc-section" id="doc-params">
+      <div class="doc-h1">Parâmetros do <span>Veredicto</span></div>
+      <div class="doc-lead">Cada seller tem premissas diferentes. Um seller que trabalha com produtos de R$200+ tem critérios totalmente diferentes de um que vende por R$30. Configure os parâmetros abaixo e o Radar vai calibrar o veredicto para o seu perfil.</div>
+      <div class="info-box"><strong>Como funciona:</strong> O Radar calcula um score de 0-100 baseado em critérios ponderados. Cada critério tem um peso e um threshold. Se o mercado passa do threshold, o critério contribui positivamente para o score. O veredicto final é gerado pela IA com base no score total.</div>
+
+      <div class="param-card">
+        <div class="param-title">📊 Critérios de Volume e Demanda</div>
+        <div class="param-desc">Define o que é um mercado com demanda real suficiente para justificar entrar</div>
+        <div class="param-grid">
+          <div class="param-field">
+            <label class="param-label">Volume mínimo de anúncios</label>
+            <input class="param-input" id="p-vol-min" type="number" value="200" min="10" max="10000">
+            <div class="param-unit">anúncios ativos na categoria (abaixo = mercado pequeno demais)</div>
+          </div>
+          <div class="param-field">
+            <label class="param-label">Vendas mínimas do top seller (mês)</label>
+            <input class="param-input" id="p-vendas-top" type="number" value="100" min="10">
+            <div class="param-unit">unidades/mês. Valida que há demanda real no nicho</div>
+          </div>
+          <div class="param-field">
+            <label class="param-label">Peso deste critério no score</label>
+            <input class="param-input" id="p-vol-peso" type="number" value="25" min="0" max="100">
+            <div class="param-unit">% do score total (todos os pesos devem somar 100)</div>
+          </div>
+          <div class="param-field">
+            <label class="param-label">Crescimento mínimo de demanda</label>
+            <input class="param-input" id="p-cresc" type="number" value="5" min="0">
+            <div class="param-unit">% de crescimento nos últimos 30 dias (0 = não considera)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="param-card">
+        <div class="param-title">⚔️ Critérios de Concorrência</div>
+        <div class="param-desc">Define o nível de concorrência que você está disposto a enfrentar</div>
+        <div class="param-grid">
+          <div class="param-field">
+            <label class="param-label">Sellers únicos máximo (não saturado)</label>
+            <input class="param-input" id="p-sellers-max" type="number" value="150" min="10">
+            <div class="param-unit">acima disso = mercado saturado no veredicto</div>
+          </div>
+          <div class="param-field">
+            <label class="param-label">% máxima de Full ML nos top sellers</label>
+            <input class="param-input" id="p-full-max" type="number" value="70" min="0" max="100">
+            <div class="param-unit">% acima disso = difícil competir sem Full</div>
+          </div>
+          <div class="param-field">
+            <label class="param-label">Score mínimo reputação dos top sellers</label>
+            <input class="param-input" id="p-rep-top" type="number" value="4.0" min="1" max="5" step="0.1">
+            <div class="param-unit">de 5.0 — sellers com rep alta são mais difíceis de superar</div>
+          </div>
+          <div class="param-field">
+            <label class="param-label">Peso deste critério no score</label>
+            <input class="param-input" id="p-conc-peso" type="number" value="30" min="0" max="100">
+            <div class="param-unit">% do score total</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="param-card">
+        <div class="param-title">💰 Critérios Financeiros</div>
+        <div class="param-desc">Define a viabilidade econômica do nicho para o seu negócio</div>
+        <div class="param-grid">
+          <div class="param-field">
+            <label class="param-label">Preço mínimo do nicho (R$)</label>
+            <input class="param-input" id="p-preco-min" type="number" value="25" min="1">
+            <div class="param-unit">abaixo disso = difícil ter margem após taxas ML</div>
+          </div>
+          <div class="param-field">
+            <label class="param-label">Margem mínima após taxas (%)</label>
+            <input class="param-input" id="p-margem-min" type="number" value="20" min="1" max="100">
+            <div class="param-unit">margem líquida mínima para o nicho ser viável</div>
+          </div>
+          <div class="param-field">
+            <label class="param-label">RBT12 para cálculo do DAS (R$)</label>
+            <input class="param-input" id="p-rbt12" type="number" value="300000" min="0">
+            <div class="param-unit">seu faturamento anual para cálculo correto do Simples</div>
+          </div>
+          <div class="param-field">
+            <label class="param-label">Peso deste critério no score</label>
+            <input class="param-input" id="p-fin-peso" type="number" value="25" min="0" max="100">
+            <div class="param-unit">% do score total</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="param-card">
+        <div class="param-title">🏆 Thresholds do Veredicto</div>
+        <div class="param-desc">Define a pontuação mínima para cada classificação do veredicto final</div>
+        <div class="param-grid">
+          <div class="param-field">
+            <label class="param-label">Score mínimo "Vale entrar" 🟢</label>
+            <input class="param-input" id="p-score-sim" type="number" value="65" min="0" max="100">
+            <div class="param-unit">pontos de 100 — recomendado: 60-70</div>
+          </div>
+          <div class="param-field">
+            <label class="param-label">Score "Oportunidade com ressalvas" 🟡</label>
+            <input class="param-input" id="p-score-med" type="number" value="40" min="0" max="100">
+            <div class="param-unit">pontos de 100 — entre este e o acima = amarelo</div>
+          </div>
+          <div class="param-field">
+            <label class="param-label">Score máximo "Evite" 🔴</label>
+            <input class="param-input" id="p-score-nao" type="number" value="39" min="0" max="100">
+            <div class="param-unit">abaixo do score médio = vermelho</div>
+          </div>
+          <div class="param-field">
+            <label class="param-label">Peso critério Qualidade de Anúncios</label>
+            <input class="param-input" id="p-qual-peso" type="number" value="20" min="0" max="100">
+            <div class="param-unit">% do score total (fotos, fichas, títulos dos top sellers)</div>
+          </div>
+        </div>
+        <div class="verdict-preview" id="verdict-preview">
+          <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:10px">Preview do veredicto</div>
+          <div class="vp-row"><div class="vp-color" style="background:var(--green)"></div><span style="font-weight:700;color:var(--green)">Vale entrar</span><span style="margin-left:auto;font-weight:800" id="vp-sim">≥ 65 pontos</span></div>
+          <div class="vp-row"><div class="vp-color" style="background:var(--orange)"></div><span style="font-weight:700;color:var(--orange)">Oportunidade com ressalvas</span><span style="margin-left:auto;font-weight:800" id="vp-med">40-64 pontos</span></div>
+          <div class="vp-row"><div class="vp-color" style="background:var(--red)"></div><span style="font-weight:700;color:var(--red)">Evite</span><span style="margin-left:auto;font-weight:800" id="vp-nao">< 40 pontos</span></div>
+        </div>
+        <button class="param-save-btn" onclick="saveParams()">💾 Salvar meus parâmetros</button>
+        <span id="param-saved" style="font-size:11px;color:var(--green);margin-left:10px;font-weight:700;display:none">✓ Salvo!</span>
+      </div>
+    </div>
+
+    <!-- IA PROMPTS -->
+    <div class="doc-section" id="doc-ia-prompt">
+      <div class="doc-h1">Prompts da <span>IA</span></div>
+      <div class="doc-lead">Os prompts enviados ao Claude API são a alma do Radar. Eles transformam dados brutos em veredictos acionáveis. Use os parâmetros configuráveis do seller para personalizar a análise.</div>
+      <div class="doc-h2">Prompt — Radar de Mercado</div>
+      <div class="doc-code"><span class="cm">// Prompt enviado ao Claude API com dados reais</span>
+system: <span class="str">"Você é um analista sênior de e-commerce especializado no Mercado Livre Brasil.
+Analise os dados fornecidos e retorne APENAS um JSON válido sem markdown."</span>
+
+user: <span class="str">`Analise o nicho "${keyword}" no ML com base nos dados:
+MERCADO: ${JSON.stringify(dadosMercado)}
+MEU POSICIONAMENTO: ${JSON.stringify(dadosSeller)}
+MEUS PARÂMETROS: ${JSON.stringify(params)}
+
+Retorne JSON:
+{
+  "score": 0-100,
+  "nivel_concorrencia": "facil|medio|saturado",
+  "faixa_vencedora": { "min": 0, "max": 0, "ideal": 0 },
+  "gap_identificado": "texto explicando a oportunidade",
+  "meu_posicionamento": "texto sobre como o seller está vs mercado",
+  "top3_insights": ["insight1", "insight2", "insight3"],
+  "riscos": ["risco1", "risco2"],
+  "veredicto": "vale|ressalvas|evite",
+  "justificativa": "texto de 2-3 frases explicando o veredicto",
+  "proximos_passos": ["passo1", "passo2", "passo3"]
+}`</span></div>
+      <div class="doc-h2">Prompt — Diagnóstico de Anúncio</div>
+      <div class="doc-code">user: <span class="str">`Diagnostique o anúncio MLB${id}:
+MEUS DADOS: ${JSON.stringify(meuAnuncio)}
+TOP 10 CONCORRENTES: ${JSON.stringify(concorrentes)}
+
+Retorne JSON:
+{
+  "score_total": 0-100,
+  "scores": {
+    "titulo": 0-100, "fotos": 0-100,
+    "preco": 0-100, "envio": 0-100, "ficha": 0-100
+  },
+  "plano_acao": [
+    { "prioridade": 1, "ajuste": "texto", "impacto_estimado": "alto|medio|baixo" }
+  ],
+  "vs_concorrentes": "texto comparando"
+}`</span></div>
+    </div>
+
+    <!-- PLANOS -->
+    <div class="doc-section" id="doc-planos">
+      <div class="doc-h1">Planos e <span>Preços</span></div>
+      <div class="doc-lead">Modelo freemium agressivo. Free útil o suficiente para gerar confiança, Starter cobre o CAC em 1 mês, Pro é para quem leva o negócio a sério.</div>
+      <table class="doc-table">
+        <tr><th>Feature</th><th>Free</th><th>Starter R$29/mês</th><th>Pro R$59/mês</th></tr>
+        <tr><td>Radar de Mercado</td><td>5/mês</td><td>50/mês</td><td>Ilimitado</td></tr>
+        <tr><td>Histórico de pesquisas</td><td>Não</td><td>3 meses</td><td>12 meses</td></tr>
+        <tr><td>Conexão ML (OAuth)</td><td>Não</td><td>1 conta</td><td>3 contas</td></tr>
+        <tr><td>Diagnóstico anúncio</td><td>Manual</td><td>Dados reais</td><td>+ benchmark auto</td></tr>
+        <tr><td>Parâmetros configuráveis</td><td>Padrão</td><td>Configurável</td><td>Configurável + salvo</td></tr>
+        <tr><td>Financeiro PJ/PF</td><td>50 lançamentos</td><td>Completo</td><td>Completo + relatórios</td></tr>
+        <tr><td>Gerador de títulos</td><td>3/mês</td><td>20/mês</td><td>Ilimitado</td></tr>
+        <tr><td>Suporte</td><td>Comunidade</td><td>Email 48h</td><td>Chat prioritário</td></tr>
+      </table>
+      <div class="doc-h2">Projeção de receita</div>
+      <table class="doc-table">
+        <tr><th>Cenário</th><th>Mês 6</th><th>Mês 12</th><th>MRR Mês 12</th></tr>
+        <tr><td>Conservador</td><td>50 pagantes</td><td>200 pagantes</td><td>R$8.200</td></tr>
+        <tr><td>Base</td><td>150 pagantes</td><td>500 pagantes</td><td>R$20.500</td></tr>
+        <tr><td>Otimista</td><td>300 pagantes</td><td>1.000 pagantes</td><td>R$41.000</td></tr>
+      </table>
+    </div>
+
+    <!-- CHECKLIST DE LANÇAMENTO -->
+    <div class="doc-section" id="doc-lancamento">
+      <div class="doc-h1">Checklist de <span>Lançamento</span></div>
+      <div class="doc-lead">Da ideia ao primeiro pagante. Cada item deve estar concluído antes de avançar para o próximo bloco.</div>
+      <div class="doc-h2">Bloco 1 — Fundação técnica</div>
+      <div class="doc-step"><div class="doc-step-n">✓</div><div class="doc-step-body"><div class="doc-step-title">Repositório dnc-little criado no GitHub</div><div class="doc-step-desc">SellerDNC/dnc-little — deploy automático no Cloudflare Pages</div></div></div>
+      <div class="doc-step"><div class="doc-step-n">2</div><div class="doc-step-body"><div class="doc-step-title">Worker ML multi-tenant funcionando</div><div class="doc-step-desc">Testado com 3 contas ML diferentes. Refresh automático validado.</div></div></div>
+      <div class="doc-step"><div class="doc-step-n">3</div><div class="doc-step-body"><div class="doc-step-title">Supabase com todas as tabelas e RLS</div><div class="doc-step-desc">radar_sellers, radar_tokens, radar_pesquisas, radar_contas, radar_params</div></div></div>
+      <div class="doc-step"><div class="doc-step-n">4</div><div class="doc-step-body"><div class="doc-step-title">Auth Supabase (email/senha) funcionando</div><div class="doc-step-desc">Login, cadastro, sessão persistente, logout</div></div></div>
+      <div class="doc-h2">Bloco 2 — Core do produto</div>
+      <div class="doc-step"><div class="doc-step-n">5</div><div class="doc-step-body"><div class="doc-step-title">Radar de Mercado entregando veredicto</div><div class="doc-step-desc">API pública + Claude API + parâmetros configuráveis funcionando</div></div></div>
+      <div class="doc-step"><div class="doc-step-n">6</div><div class="doc-step-body"><div class="doc-step-title">Diagnóstico de anúncio com dados reais</div><div class="doc-step-desc">Score + plano de ação com top 3 ajustes</div></div></div>
+      <div class="doc-step"><div class="doc-step-n">7</div><div class="doc-step-body"><div class="doc-step-title">Calculadora + Financeiro + Calendário</div><div class="doc-step-desc">Módulos completos e testados</div></div></div>
+      <div class="doc-h2">Bloco 3 — Monetização e lançamento</div>
+      <div class="doc-step"><div class="doc-step-n">8</div><div class="doc-step-body"><div class="doc-step-title">Stripe integrado com planos Free/Starter/Pro</div><div class="doc-step-desc">Trial 14 dias, webhook ativando plano, emails automáticos</div></div></div>
+      <div class="doc-step"><div class="doc-step-n">9</div><div class="doc-step-body"><div class="doc-step-title">Beta com 10 sellers reais — NPS maior que 35</div><div class="doc-step-desc">Onboarding 1:1, grupo WhatsApp, formulário NPS quinzenal</div></div></div>
+      <div class="doc-step"><div class="doc-step-n">10</div><div class="doc-step-body"><div class="doc-step-title">Landing page radar.com.br no ar</div><div class="doc-step-desc">Com demo animado, planos, CTA e depoimentos dos beta users</div></div></div>
+      <div class="doc-step"><div class="doc-step-n">11</div><div class="doc-step-body"><div class="doc-step-title">Lançamento — 20 pagantes na semana 1</div><div class="doc-step-desc">Grupos ML, YouTube short, LinkedIn, Product Hunt</div></div></div>
+    </div>
+
+  </div><!-- /docs-content -->
+</div><!-- /tab-docs -->
+
+<!-- ════════════════════════════════════════════
+     TAB 4: ROTINA SEMANAL
+════════════════════════════════════════════ -->
+<div class="section" id="tab-rotina">
+  <div class="rotina-header">
+    <h2>Rotina Semanal do Seller Lucrativo</h2>
+    <span class="week-badge" id="week-badge">Semana atual</span>
+    <div class="rotina-prog">
+      <span id="rotina-pct">0% da semana</span>
+    </div>
+    <button class="reset-btn" onclick="resetRotina()">↺ Reiniciar semana</button>
+  </div>
+  <div class="rotina-body" id="rotina-body"></div>
+</div>
+
+<script>
+// ── SUPABASE ───────────────────────────────────────────────────────────────
+let sb=null;
+try{sb=supabase.createClient('https://qwksndbznjkoliinsbqx.supabase.co','sb_publishable_gOIRuZ8-TjlEPTcPMWHMhQ_Xdeh-RW4');}catch(e){}
+
+function setSyncUI(s){
+  const d=document.getElementById('sdot'),t=document.getElementById('stxt');
+  if(s==='ok'){d.className='sdot ok';t.textContent='salvo';}
+  else if(s==='syncing'){d.className='sdot syncing';t.textContent='salvando...';}
+  else if(s==='err'){d.className='sdot err';t.textContent='erro sync';}
+  else{d.className='sdot';t.textContent='local only';}
+}
+
+// ── ESTADO ─────────────────────────────────────────────────────────────────
+let state={tasks:{},rotina:{},params:{},selTask:null,msgs:[],loading:false};
+const SB_ROW='radar_agent_v1';
+
+async function loadState(){
+  try{const s=JSON.parse(localStorage.getItem('radar-state')||'{}');if(s&&typeof s==='object'){state.tasks=s.tasks||{};state.rotina=s.rotina||{};state.params=s.params||{};}}catch(e){}
+  if(!sb){setSyncUI('local');return;}
+  try{
+    const{data,error}=await sb.from('dnc_tasks').select('data').eq('id',SB_ROW).single();
+    if(!error&&data?.data){const p=JSON.parse(data.data);if(p&&typeof p==='object'){state.tasks=p.tasks||state.tasks;state.rotina=p.rotina||state.rotina;state.params=p.params||state.params;}}
+    setSyncUI('ok');
+  }catch(e){setSyncUI('local');}
+}
+
+async function saveState(){
+  localStorage.setItem('radar-state',JSON.stringify({tasks:state.tasks,rotina:state.rotina,params:state.params}));
+  if(!sb){setSyncUI('local');return;}
+  setSyncUI('syncing');
+  try{
+    await sb.from('dnc_tasks').upsert({id:SB_ROW,data:JSON.stringify({tasks:state.tasks,rotina:state.rotina,params:state.params})},{onConflict:'id'});
+    setSyncUI('ok');
+  }catch(e){setSyncUI('err');}
+}
+
+// ── NAVEGAÇÃO ──────────────────────────────────────────────────────────────
+function showTab(id){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  const btns=document.querySelectorAll('.nav-tab');
+  const map={chat:0,tasks:1,docs:2,rotina:3};
+  btns[map[id]].classList.add('active');
+}
+function showDoc(id){
+  document.querySelectorAll('.doc-section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('doc-'+id).classList.add('active');
+  document.querySelectorAll('.docs-nav-item').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+// ── ROADMAP ────────────────────────────────────────────────────────────────
+const SPRINTS=[
+  {id:'s1',label:'Sprint 1 — Base técnica',cls:'sb1',tasks:[
+    {id:'s1t1',title:'Criar repositório dnc-little',prio:'crit',desc:'Repositório GitHub separado do DNC Flow. Nome do produto: Radar. Deploy automático no Cloudflare Pages em cada push na branch main.',steps:['Acessar github.com/SellerDNC','Criar novo repositório público: dnc-little','Adicionar index.html com identidade visual ML (amarelo #FFE600, azul #3483FA)','Configurar Cloudflare Pages: Build command vazio, publish root /, conectar ao repo','Verificar que dnc-little.pages.dev está online e funcionando']},
+    {id:'s1t2',title:'Reescrever Worker ML multi-tenant',prio:'crit',desc:'O Worker atual é de conta única (André). Novo Worker suporta qualquer seller com OAuth completo e refresh automático de token a cada 6h.',steps:['Criar novo Worker: radar-ml-worker no Cloudflare','Adicionar secrets: ML_CLIENT_ID, ML_CLIENT_SECRET, SUPABASE_URL, SUPABASE_SERVICE_KEY','Implementar endpoint GET /auth: redireciona para ML com state=seller_id','Implementar endpoint GET /callback: troca code por tokens, salva no Supabase','Implementar endpoint POST /refresh: renova access_token antes de expirar','Implementar endpoint GET /orders: busca pedidos em chunks de 30 dias','Implementar endpoint GET /market: API pública ML sem auth','Upgrade Workers para Paid ($5/mês) — elimina timeout de 30s','Testar com 3 contas ML diferentes — validar multi-tenant']},
+    {id:'s1t3',title:'Supabase — tabelas multi-seller',prio:'crit',desc:'Estrutura de banco multi-tenant com RLS. Cada seller só vê seus dados.',steps:['Executar SQL: CREATE TABLE radar_sellers, radar_tokens, radar_pesquisas, radar_contas, radar_params','Habilitar RLS em todas as tabelas','Criar policies: USING (seller_id = auth.uid())','Testar isolamento: seller A não pode ler dados do seller B','Verificar que service role key do Worker bypassa RLS (correto para o Worker)']},
+    {id:'s1t4',title:'Auth Supabase (email/senha)',prio:'alto',desc:'Cadastro e login do seller no Radar. Sessão persistente com refresh automático.',steps:['Ativar Supabase Auth no painel','Criar página de login/cadastro com identidade visual ML','Após cadastro: redirecionar para fluxo de conexão ML','Implementar sessão persistente com onAuthStateChange','Rota protegida: sem auth → redireciona para login automaticamente']},
+    {id:'s1t5',title:'OAuth ML — 1 clique para qualquer seller',prio:'crit',desc:'Seller clica, autoriza na página oficial do ML, volta com dados carregados. Funciona para qualquer conta ML.',steps:['Adicionar dnc-little.pages.dev como redirect URI no DevCenter ML','Botão "Conectar Mercado Livre" com identidade visual ML','Redirecionar para: auth.mercadolivre.com.br/authorization?client_id=X','Callback /callback recebe code, chama Worker, salva tokens','Badge "ML Conectado" + nome do seller após sucesso','Testar com conta própria e com 2 contas de teste ML']},
+  ]},
+  {id:'s2',label:'Sprint 2 — Radar de Mercado',cls:'sb2',tasks:[
+    {id:'s2t1',title:'API pública ML — busca de nicho',prio:'crit',desc:'Endpoint que busca dados de mercado sem necessidade de OAuth. Zero atrito para usuários não conectados.',steps:['Endpoint GET /market?q={keyword} no Worker','Chamar api.mercadolibre.com/sites/MLB/search?q={keyword}&limit=50','Extrair: total_anuncios, sellers_unicos, preco_min/max/medio, full_pct, frete_gratis_pct','Página 2 para mais dados: &offset=50','Retornar JSON estruturado para o frontend','Testar com 10 keywords reais da sua operação']},
+    {id:'s2t2',title:'Combinar mercado + dados do seller',prio:'crit',desc:'Para sellers conectados: cruzar dados do mercado com os anúncios reais do seller no mesmo nicho.',steps:['Buscar anúncios do seller na keyword pesquisada via OAuth','Identificar se seller já tem anúncios no nicho','Calcular: posição relativa de preço, %Full vs mercado, reputação vs top 10','Retornar objeto combinado: { mercado, meu_posicionamento }','Se não conectado: retornar só mercado (funciona mesmo sem OAuth)']},
+    {id:'s2t3',title:'Parâmetros configuráveis por seller',prio:'crit',desc:'Cada seller define seus próprios thresholds. Parâmetros salvos no Supabase por seller_id.',steps:['Interface de configuração de parâmetros (ver aba Documentação > Parâmetros)','Valores padrão sensatos para novos sellers','Salvar em radar_params: { seller_id, params JSONB }','Aplicar parâmetros do seller no cálculo do score e no prompt da IA','Mostrar "Usando seus parâmetros personalizados" vs "Usando parâmetros padrão"']},
+    {id:'s2t4',title:'Claude API — análise e veredicto',prio:'crit',desc:'IA processa dados brutos e entrega veredicto estruturado em JSON com score, insights e próximos passos.',steps:['Montar prompt com dados do mercado + posicionamento + parâmetros do seller','Solicitar JSON: score, nivel_concorrencia, faixa_vencedora, veredicto, justificativa, proximos_passos','Retry automático se JSON inválido (1 tentativa extra)','Validar schema antes de exibir para o seller','Testar com 5 keywords reais — validar consistência do veredicto']},
+    {id:'s2t5',title:'Interface do Radar de Mercado',prio:'crit',desc:'Tela principal do produto. Visual idêntico ao ML, limpo e direto.',steps:['Campo de busca com placeholder "Digite um produto ou nicho..."','Loading com etapas visíveis: Buscando mercado → Analisando dados → Gerando veredicto','Card de resultado: score circular, nível, faixa de preço','Veredicto em destaque: 🟢 Vale entrar / 🟡 Ressalvas / 🔴 Evite + justificativa','Seção "Seu posicionamento" se seller conectado ao ML','Salvar pesquisa no Supabase com botão "Salvar análise"','Histórico das últimas pesquisas na sidebar']},
+  ]},
+  {id:'s3',label:'Sprint 3 — Diagnóstico e Calculadora',cls:'sb3',tasks:[
+    {id:'s3t1',title:'Diagnóstico de anúncio com dados reais',prio:'crit',desc:'Score 0-100 por categoria com plano de ação prioritizado. Usa dados reais via OAuth.',steps:['Listar anúncios do seller via GET /items/search?seller_id=X','Seller seleciona qual anúncio diagnosticar','Buscar dados completos: atributos, fotos, posição, métricas de visitas','Buscar top 10 concorrentes diretos via API pública','Claude API analisa e gera score por categoria (título/foto/preço/envio/ficha)','Plano de ação: top 3 ajustes com impacto estimado (alto/médio/baixo)','Tabela comparativa: você vs top 10 concorrentes']},
+    {id:'s3t2',title:'Calculadora de precificação',prio:'alto',desc:'Portada do DNC Flow com melhorias: simulador de cenários e pré-preenchimento com dados reais.',steps:['Portar calcPrecificacao() e calcDAS() do DNC Flow','Simulador: 4 cenários ADS em paralelo (0%, 5%, 10%, 15%)','Se seller conectado: pré-preencher PDV com preço atual do anúncio','Calcular ponto de equilíbrio em unidades/mês','Comparar margem calculada vs média estimada do mercado','Salvar configurações de custo por SKU em radar_contas']},
+    {id:'s3t3',title:'Gerador de títulos ML com IA',prio:'alto',desc:'Keywords reais da API pública + Claude API = 8 títulos otimizados com score.',steps:['Buscar keywords mais pesquisadas na categoria via API pública','Seller informa: produto, diferenciais, tipo (Clássico/Premium)','Claude API gera 8 variações respeitando 60 caracteres','Score estimado de relevância para cada título (0-100)','Botão copiar para cada título','Limite por plano: Free 3/mês | Starter 20/mês | Pro ilimitado']},
+    {id:'s3t4',title:'Testes E2E do fluxo principal',prio:'alto',desc:'Validar fluxo completo antes de abrir para beta.',steps:['Teste 1: cadastro → login → conectar ML → ver dados','Teste 2: buscar "alicate pesca" → veredicto em menos de 15s','Teste 3: selecionar anúncio real → score + plano de ação','Teste 4: calculadora com dados pré-preenchidos','Testar com 3 sellers ML diferentes — validar multi-tenant','Medir tempos de resposta: meta < 15s por análise']},
+  ]},
+  {id:'s4',label:'Sprint 4 — Lançamento',cls:'sb4',tasks:[
+    {id:'s4t1',title:'Financeiro PJ vs PF separados',prio:'alto',desc:'Dashboard dual empresa/pessoal. Pro-labore, fluxo de caixa, alertas de vencimento.',steps:['Adaptar módulo financeiro do DNC Flow para multi-tenant','Separação visual clara PJ vs PF com cores distintas','Contas a pagar/receber com recorrência','Alerta de vencimento: 3, 7, 15 dias antes','Pro-labore: cálculo de quanto pode retirar esse mês','Gráfico mensal por área salvo no radar_contas']},
+    {id:'s4t2',title:'Calendário com campanhas ML',prio:'med',desc:'Obrigações MEI pré-carregadas + campanhas sazonais do ML 2026.',steps:['Adaptar calendário do DNC Flow','Pré-carregar obrigações MEI: DAS dia 20, DASN em janeiro, renovações','Campanhas ML 2026: Dia das Mães (11/mai), Namorados (12/jun), Pais (10/ago), BF (27/nov), Natal','Tarefas com prioridade e área (PJ/PF)','Dots coloridos: verde=recebimento, laranja=pagamento, roxo=campanha ML']},
+    {id:'s4t3',title:'Stripe billing — planos e trial',prio:'crit',desc:'Monetização completa. Trial 14 dias sem cartão, cobrança recorrente, webhook ativando features.',steps:['Criar conta Stripe e produtos: Starter (R$29) e Pro (R$59)','Página de upgrade com tabela de planos dentro do app','Checkout Stripe embutido — sem sair do Radar','Webhook: payment_succeeded → UPDATE radar_sellers SET plan','Trial 14 dias: criar conta → 14 dias Pro grátis → prompt para assinar','Emails: boas-vindas, trial expirando (3 dias antes), confirmação de pagamento']},
+    {id:'s4t4',title:'Beta fechado com 10 sellers',prio:'crit',desc:'Validação real antes do lançamento público. NPS meta > 35.',steps:['Recrutar via grupos de sellers ML no WhatsApp e Facebook','Onboarding 1:1 via WhatsApp para os primeiros 5 sellers','Grupo privado para feedback e bugs','Formulário NPS após 15 dias — meta NPS > 35','Coletar depoimentos para landing page','Corrigir todos os bugs relatados antes de lançar']},
+    {id:'s4t5',title:'Landing page radar.com.br',prio:'alto',desc:'Página de entrada profissional para aquisição orgânica.',steps:['Headline: "Pesquisa de mercado ML com IA em 30 segundos"','Demo animado do Radar em ação (GIF ou video autoplay)','Seção de planos com CTA "Testar grátis 14 dias"','Depoimentos dos beta users com foto e faturamento','SEO: pesquisa mercado livre, ferramenta seller ml, analise nicho ml','Deploy em radar.com.br via Cloudflare Pages custom domain']},
+    {id:'s4t6',title:'Lançamento público',prio:'crit',desc:'Meta: 20 pagantes na semana 1, 50 no mês 1.',steps:['Post nos 5 maiores grupos de sellers ML no Facebook','YouTube short 60s mostrando o Radar em ação (comparar manual vs Radar)','LinkedIn: case de uso real com números dos beta users','Product Hunt: publicar 00:01 PST, recrutar upvoters antes','Responder todos os comentários e DMs no dia do lançamento','Monitorar Stripe dashboard a cada hora — comemorar primeiro pagante']},
+  ]},
+];
+
+function getTask(id){for(const s of SPRINTS){const t=s.tasks.find(t=>t.id===id);if(t)return t;}return null;}
+
+function renderTasks(){
+  const list=document.getElementById('ts-list');
+  let total=0,done=0;
+  list.innerHTML=SPRINTS.map(sp=>{
+    total+=sp.tasks.length;
+    const pd=sp.tasks.filter(t=>state.tasks[t.id]).length;
+    done+=pd;
+    return`<div>
+      <div class="sprint-hdr" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none'">
+        <span class="sbadge ${sp.cls}">${sp.id.replace('s','')}</span>
+        <span style="flex:1;font-size:11px">${sp.label}</span>
+        <span class="sprint-count">${pd}/${sp.tasks.length}</span>
+      </div>
+      <div class="task-items">${sp.tasks.map(task=>{
+        const isDone=state.tasks[task.id];
+        const isSel=state.selTask?.id===task.id;
+        return`<div class="ti ${isDone?'done':''} ${isSel?'sel':''}" onclick="selectTask('${task.id}')">
+          <div class="cb ${isDone?'chk':''}" onclick="toggleTask('${task.id}');event.stopPropagation()">${isDone?'✓':''}</div>
+          <span class="ti-title">${task.title}</span>
+        </div>`;
+      }).join('')}</div>
+    </div>`;
+  }).join('');
+  const pct=Math.round(done/total*100);
+  document.getElementById('tpct').textContent=pct+'%';
+  document.getElementById('tpfill').style.width=pct+'%';
+}
+
+function selectTask(id){
+  const task=getTask(id);state.selTask=task;renderTasks();
+  const pm={crit:'pt-crit',alto:'pt-alto',med:'pt-med'};
+  const isDone=state.tasks[task.id];
+  document.getElementById('tasks-main').innerHTML=`
+    <div class="task-detail-card">
+      <div><span class="prio-tag ${pm[task.prio]||'pt-med'}">${task.prio.toUpperCase()}</span>
+      ${isDone?'<span class="prio-tag" style="background:rgba(0,166,80,.12);color:var(--green)">✓ CONCLUÍDA</span>':''}</div>
+      <div class="det-title">${task.title}</div>
+      <div class="det-desc">${task.desc}</div>
+      <button class="ask-ai-btn" onclick="askAboutTask()">🤖 Pedir ajuda da IA</button>
+    </div>
+    <div class="task-detail-card">
+      <div class="steps-lbl">Passos de execução</div>
+      ${task.steps.map((s,i)=>`<div class="step-row"><div class="sn">${i+1}</div><div>${s}</div></div>`).join('')}
+    </div>
+    <div class="task-detail-card" style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-size:13px;font-weight:800">Marcar como ${isDone?'pendente':'concluída'}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">Salvo no Supabase — sincroniza em todos os dispositivos</div>
+      </div>
+      <button class="done-toggle" onclick="toggleTask('${task.id}')"
+        style="border-color:${isDone?'var(--red)':'var(--green)'};color:${isDone?'var(--red)':'var(--green)'}">
+        ${isDone?'↩ Desfazer':'✓ Concluir'}
+      </button>
+    </div>`;
+}
+
+async function toggleTask(id){state.tasks[id]=!state.tasks[id];renderTasks();if(state.selTask?.id===id)selectTask(id);await saveState();}
+
+function askAboutTask(){
+  if(!state.selTask)return;
+  showTab('chat');
+  const q=`Me ajude a executar esta tarefa do Radar: "${state.selTask.title}". Passos: ${state.selTask.steps.join(' | ')}. Quero instruções detalhadas para começar agora.`;
+  document.getElementById('cinput').value=q;sendChat();
+}
+
+// ── ROTINA SEMANAL ─────────────────────────────────────────────────────────
+const ROTINA=[
+  {dia:'Segunda-feira',emoji:'📊',cls:'dh-seg',foco:'Análise e Revisão',tasks:[
+    {id:'seg1',title:'Revisar vendas da semana anterior',sub:'Comparar com semana passada — cresceu ou caiu?',prio:'essencial'},
+    {id:'seg2',title:'Verificar estoque crítico',sub:'Menos de 15 unidades = pedir reposição hoje',prio:'essencial'},
+    {id:'seg3',title:'Checar reputação e reclamações abertas',sub:'Meta: zero reclamações abertas há mais de 48h',prio:'essencial'},
+    {id:'seg4',title:'Abrir o Radar — análise semanal de mercado',sub:'Pesquisar os 2 principais nichos da operação',prio:'importante'},
+    {id:'seg5',title:'Revisar pedidos com problema (cancelados/estornos)',sub:'Identificar padrão e corrigir causa raiz',prio:'importante'},
+  ]},
+  {dia:'Terça-feira',emoji:'📢',cls:'dh-ter',foco:'Gestão de Anúncios e ADS',tasks:[
+    {id:'ter1',title:'Checar ACOS dos últimos 7 dias',sub:'Meta: ACOS < 15%. Pausar campanhas acima de 25%',prio:'essencial'},
+    {id:'ter2',title:'Ajustar lances nas palavras-chave de alto custo',sub:'Reduzir 20% nas keywords com ACOS > 30%',prio:'essencial'},
+    {id:'ter3',title:'Diagnosticar 1 anúncio de baixa performance',sub:'Usar o Radar — Diagnóstico de Anúncio',prio:'importante'},
+    {id:'ter4',title:'Verificar posição dos anúncios principais',sub:'Seu anúncio aparece nas 5 primeiras posições?',prio:'importante'},
+    {id:'ter5',title:'Responder perguntas pendentes (meta: zero)',sub:'Tempo de resposta ideal: menos de 4 horas',prio:'essencial'},
+    {id:'ter6',title:'Atualizar fotos de 1 anúncio desatualizado',sub:'Foco em fundo branco, sequência correta',prio:'bom-ter'},
+  ]},
+  {dia:'Quarta-feira',emoji:'🔍',cls:'dh-qua',foco:'Pesquisa e Inteligência',tasks:[
+    {id:'qua1',title:'Pesquisar 2 nichos novos no Radar',sub:'Buscar oportunidades com score ≥ 65 (Vale entrar)',prio:'essencial'},
+    {id:'qua2',title:'Analisar 3 concorrentes principais',sub:'Preço, foto, título, tipo de envio — o que mudaram?',prio:'importante'},
+    {id:'qua3',title:'Verificar tendências de busca ML da sua categoria',sub:'Palavras novas em alta = oportunidade de SEO',prio:'importante'},
+    {id:'qua4',title:'Salvar análises no histórico do Radar',sub:'Comparar mesmo nicho daqui a 30 dias',prio:'bom-ter'},
+    {id:'qua5',title:'Identificar produto para testar na próxima semana',sub:'Baseado nas pesquisas do Radar — decidir com dados',prio:'bom-ter'},
+  ]},
+  {dia:'Quinta-feira',emoji:'💲',cls:'dh-qui',foco:'Precificação e Posicionamento',tasks:[
+    {id:'qui1',title:'Usar calculadora Radar em 3 produtos principais',sub:'Confirmar que a margem está dentro do planejado',prio:'essencial'},
+    {id:'qui2',title:'Comparar preço com top 5 concorrentes diretos',sub:'Seu preço está competitivo sem destruir margem?',prio:'essencial'},
+    {id:'qui3',title:'Ajustar preço de produtos com baixa conversão',sub:'Teste A/B: reduzir 5% por 7 dias e medir impacto',prio:'importante'},
+    {id:'qui4',title:'Checar se há campanhas de desconto ML ativas',sub:'Participar das campanhas certas aumenta visibilidade',prio:'importante'},
+    {id:'qui5',title:'Calcular DAS do mês atual',sub:'RBT12 atualizado + receita projetada do mês',prio:'essencial'},
+  ]},
+  {dia:'Sexta-feira',emoji:'💰',cls:'dh-sex',foco:'Financeiro Semanal',tasks:[
+    {id:'sex1',title:'Lançar receitas e despesas da semana no Radar',sub:'Separar PJ (operação) de PF (pessoal)',prio:'essencial'},
+    {id:'sex2',title:'Conferir contas a vencer na próxima semana',sub:'Fornecedores, frete, DAS, INSS — zero surpresa',prio:'essencial'},
+    {id:'sex3',title:'Calcular margem real da semana',sub:'Faturamento - (custo produto + frete + taxas ML + ADS)',prio:'essencial'},
+    {id:'sex4',title:'Calcular pro-labore disponível',sub:'Quanto a empresa pode distribuir sem comprometer caixa?',prio:'importante'},
+    {id:'sex5',title:'Revisar fluxo de caixa dos próximos 30 dias',sub:'Tem caixa para próximo pedido de compra?',prio:'importante'},
+    {id:'sex6',title:'Emitir relatório semanal (screenshot do dashboard)',sub:'Guardar histórico para comparação mensal',prio:'bom-ter'},
+  ]},
+  {dia:'Sábado',emoji:'🎨',cls:'dh-sab',foco:'Conteúdo e Melhoria',tasks:[
+    {id:'sab1',title:'Otimizar título de 1 anúncio com o Radar',sub:'Gerar 8 variações e escolher o melhor score',prio:'essencial'},
+    {id:'sab2',title:'Atualizar descrição de 2 anúncios',sub:'Incluir keywords identificadas na pesquisa de quarta',prio:'importante'},
+    {id:'sab3',title:'Checar qualidade das fotos dos top produtos',sub:'Fundo branco, múltiplos ângulos, medidas visíveis?',prio:'importante'},
+    {id:'sab4',title:'Criar 1 novo anúncio (se produto identificado)',sub:'Baseado na pesquisa do Radar — nicho com score ≥ 65',prio:'bom-ter'},
+    {id:'sab5',title:'Atualizar ficha técnica de 2 anúncios incompletos',sub:'Campos faltantes = queda no ranqueamento',prio:'importante'},
+  ]},
+  {dia:'Domingo',emoji:'📅',cls:'dh-dom',foco:'Planejamento da Semana',tasks:[
+    {id:'dom1',title:'Definir as 3 prioridades da próxima semana',sub:'Escrever no Radar (módulo de Tarefas)',prio:'essencial'},
+    {id:'dom2',title:'Verificar estoque para os próximos 15 dias',sub:'Projeção de vendas × dias = precisa repor?',prio:'essencial'},
+    {id:'dom3',title:'Revisar campanhas ML ativas — orçamento OK?',sub:'Verificar se o budget de ADS vai durar a semana toda',prio:'importante'},
+    {id:'dom4',title:'Revisar calendário — alguma obrigação MEI?',sub:'DAS vence dia 20 — DAS em atraso = multa',prio:'essencial'},
+    {id:'dom5',title:'Fechar checklist desta semana — % completado?',sub:'Meta: completar 90% da rotina toda semana',prio:'importante'},
+    {id:'dom6',title:'Celebrar as vitórias da semana',sub:'Um seller lucrativo reconhece o progresso',prio:'bom-ter'},
+  ]},
+];
+
+function getWeekKey(){const d=new Date();const y=d.getFullYear();const w=Math.ceil((d-new Date(y,0,1))/(7*86400000));return`w${y}${w}`;}
+
+function renderRotina(){
+  const wk=getWeekKey();
+  document.getElementById('week-badge').textContent='Semana '+new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
+  let total=0,done=0;
+  const html=ROTINA.map(day=>{
+    const dayDone=day.tasks.filter(t=>state.rotina[wk+'_'+t.id]).length;
+    total+=day.tasks.length;done+=dayDone;
+    const pct=Math.round(dayDone/day.tasks.length*100);
+    return`<div class="day-card">
+      <div class="day-header ${day.cls}">
+        <span class="day-icon">${day.emoji}</span>
+        <div><div style="font-size:13px">${day.dia}</div><div style="font-size:10px;font-weight:600;opacity:.85">${day.foco}</div></div>
+        <span class="day-tag">${dayDone}/${day.tasks.length}</span>
+      </div>
+      <div class="day-prog-bar"><div class="day-prog-fill" style="width:${pct}%"></div></div>
+      <div class="day-tasks">
+        ${day.tasks.map(task=>{
+          const k=wk+'_'+task.id;
+          const isDone=state.rotina[k];
+          return`<div class="dt" onclick="toggleRotina('${k}')">
+            <div class="dt-cb ${isDone?'done':''}">${isDone?'✓':''}</div>
+            <div class="dt-body">
+              <div class="dt-title ${isDone?'done':''}">${task.title}<span class="dt-prio prio-${task.prio}">${task.prio}</span></div>
+              <div class="dt-sub">${task.sub}</div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="day-metric">${day.foco}<span style="font-weight:800;color:${pct===100?'var(--green)':'var(--text3)'}">${pct}%</span></div>
+    </div>`;
+  }).join('');
+  document.getElementById('rotina-body').innerHTML=html;
+  const pct=Math.round(done/total*100);
+  document.getElementById('rotina-pct').textContent=pct+'% da semana completa';
+}
+
+async function toggleRotina(key){state.rotina[key]=!state.rotina[key];renderRotina();await saveState();}
+function resetRotina(){if(!confirm('Reiniciar toda a rotina desta semana?'))return;const wk=getWeekKey();Object.keys(state.rotina).filter(k=>k.startsWith(wk)).forEach(k=>delete state.rotina[k]);renderRotina();saveState();}
+
+// ── PARÂMETROS ──────────────────────────────────────────────────────────────
+function loadParamsUI(){
+  const p=state.params;
+  if(p['vol-min'])document.getElementById('p-vol-min').value=p['vol-min'];
+  if(p['vendas-top'])document.getElementById('p-vendas-top').value=p['vendas-top'];
+  if(p['vol-peso'])document.getElementById('p-vol-peso').value=p['vol-peso'];
+  if(p['cresc'])document.getElementById('p-cresc').value=p['cresc'];
+  if(p['sellers-max'])document.getElementById('p-sellers-max').value=p['sellers-max'];
+  if(p['full-max'])document.getElementById('p-full-max').value=p['full-max'];
+  if(p['rep-top'])document.getElementById('p-rep-top').value=p['rep-top'];
+  if(p['conc-peso'])document.getElementById('p-conc-peso').value=p['conc-peso'];
+  if(p['preco-min'])document.getElementById('p-preco-min').value=p['preco-min'];
+  if(p['margem-min'])document.getElementById('p-margem-min').value=p['margem-min'];
+  if(p['rbt12'])document.getElementById('p-rbt12').value=p['rbt12'];
+  if(p['fin-peso'])document.getElementById('p-fin-peso').value=p['fin-peso'];
+  if(p['score-sim'])document.getElementById('p-score-sim').value=p['score-sim'];
+  if(p['score-med'])document.getElementById('p-score-med').value=p['score-med'];
+  if(p['score-nao'])document.getElementById('p-score-nao').value=p['score-nao'];
+  if(p['qual-peso'])document.getElementById('p-qual-peso').value=p['qual-peso'];
+  updateVerdictPreview();
+}
+
+function updateVerdictPreview(){
+  const sim=document.getElementById('p-score-sim').value;
+  const med=document.getElementById('p-score-med').value;
+  document.getElementById('vp-sim').textContent=`≥ ${sim} pontos`;
+  document.getElementById('vp-med').textContent=`${med}–${sim-1} pontos`;
+  document.getElementById('vp-nao').textContent=`< ${med} pontos`;
+}
+
+['p-score-sim','p-score-med'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',updateVerdictPreview);});
+
+async function saveParams(){
+  const fields=['vol-min','vendas-top','vol-peso','cresc','sellers-max','full-max','rep-top','conc-peso','preco-min','margem-min','rbt12','fin-peso','score-sim','score-med','score-nao','qual-peso'];
+  fields.forEach(f=>{const el=document.getElementById('p-'+f);if(el)state.params[f]=el.value;});
+  await saveState();
+  const saved=document.getElementById('param-saved');saved.style.display='inline';setTimeout(()=>saved.style.display='none',2000);
+}
+
+// ── CHAT ───────────────────────────────────────────────────────────────────
+const AGENT_CTX=`Você é o Agente de Produto do Radar — assistente especializado no desenvolvimento e lançamento deste SaaS para vendedores do Mercado Livre.
+
+PRODUTO: Radar
+Inteligência de mercado com IA para sellers do ML. Em 30 segundos entrega o que leva 3-4h manual.
+Proposta: "Em 30 segundos, você sabe se vale entrar em um nicho, por que, e o que fazer primeiro."
+
+IDENTIDADE VISUAL: Mesma do Mercado Livre — amarelo #FFE600, azul #3483FA, fundo #F0F0F0, texto #333333, fonte Nunito.
+
+DIFERENCIAL CENTRAL: IA interpreta + parâmetros configuráveis por seller. Cada seller define seus próprios thresholds (volume mínimo, concorrência máxima, margem mínima) e o veredicto é calibrado para o perfil dele.
+
+6 MÓDULOS: Radar de Mercado (core), Diagnóstico de Anúncio, Calculadora de Precificação, Financeiro PJ/PF, Calendário, Gerador de Títulos.
+
+PARÂMETROS CONFIGURÁVEIS DO VEREDICTO:
+- Volume mínimo de anúncios (padrão: 200)
+- Sellers únicos máximo para não saturado (padrão: 150)
+- % Full ML máxima nos top sellers (padrão: 70%)
+- Score mínimo para "Vale entrar" (padrão: 65/100)
+- Margem mínima após taxas (padrão: 20%)
+- Preço mínimo do nicho (padrão: R$25)
+- RBT12 do seller para cálculo correto do DAS
+
+ROTINA SEMANAL DO SELLER LUCRATIVO:
+Segunda: análise e revisão (vendas, estoque, reputação)
+Terça: gestão de anúncios e ADS (ACOS, lances, conversão)
+Quarta: pesquisa e inteligência de mercado (Radar, concorrentes)
+Quinta: precificação e posicionamento (calculadora, comparação)
+Sexta: financeiro semanal (P&L, fluxo de caixa, pro-labore)
+Sábado: conteúdo e melhoria (títulos, fotos, descrições)
+Domingo: planejamento da próxima semana
+
+STACK TÉCNICA: HTML único (Fase 1) → React (Fase 2). Worker Cloudflare Paid multi-tenant. Supabase Pro. Claude API. API pública ML (sem auth). API OAuth ML (1 clique, qualquer seller).
+
+ROADMAP: 4 sprints de 2 semanas. Sprint 1: base técnica. Sprint 2: Radar de Mercado. Sprint 3: Diagnóstico+Calculadora. Sprint 4: Financeiro+Billing+Lançamento.
+
+MERCADO: 3,3M sellers ativos ML Brasil. 1M famílias vivem do ML. GMV +30% YoY. TAM: R$970M. Meta ano 1: 500 users, MRR R$20.500.
+
+Responda em português do Brasil. Seja técnico, direto e prático. Foque 100% no Radar.`;
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function fmt(t){return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/```([\s\S]*?)```/g,'<pre>$1</pre>').replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');}
+
+function appendMsg(role,content){
+  const msgs=document.getElementById('chat-msgs');
+  const d=document.createElement('div');d.className='msg '+role;d.style.animation='fadeUp .2s ease';
+  const isA=role==='agent';
+  d.innerHTML=`<div class="av">${isA?'📡':'AG'}</div><div class="bubble">${isA?fmt(content):esc(content)}</div>`;
+  msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;
+}
+function appendLoading(){const msgs=document.getElementById('chat-msgs');const d=document.createElement('div');d.className='msg agent';d.id='lmsg';d.innerHTML=`<div class="av">📡</div><div class="bubble"><span class="spin"></span></div>`;msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;}
+function removeLoading(){document.getElementById('lmsg')?.remove();}
+function askQ(q){document.getElementById('cinput').value=q;sendChat();}
+function getKey(){return localStorage.getItem('af-apikey')||'';}
+
+async function sendChat(){
+  const inp=document.getElementById('cinput');
+  const txt=inp.value.trim();
+  if(!txt||state.loading)return;
+  const key=getKey();
+  if(!key){appendMsg('agent','⚠️ **API Key não configurada.** Abra o DNC Flow → Configurações e salve sua Anthropic API Key. O Radar usa a mesma chave.');return;}
+  inp.value='';inp.style.height='auto';
+  state.loading=true;document.getElementById('sbtn').disabled=true;
+  appendMsg('user',txt);
+  let userContent=txt;
+  if(state.selTask)userContent=`[Contexto da tarefa: "${state.selTask.title}" — ${state.selTask.desc}]\n\nPergunta: ${txt}`;
+  state.msgs.push({role:'user',content:userContent});
+  appendLoading();
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:AGENT_CTX,messages:state.msgs.slice(-12)})});
+    const data=await res.json();
+    const reply=data.content?.filter(b=>b.type==='text').map(b=>b.text).join('')||'Erro ao gerar resposta.';
+    removeLoading();appendMsg('agent',reply);state.msgs.push({role:'assistant',content:reply});
+  }catch(e){removeLoading();appendMsg('agent',`**Erro:** ${e.message}`);}
+  state.loading=false;document.getElementById('sbtn').disabled=false;inp.focus();
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+(async()=>{
+  await loadState();
+  renderTasks();renderRotina();loadParamsUI();
+  setSyncUI('ok');
+
+  appendMsg('agent',`Olá, André! Sou o Agente do **Radar** — aqui para orientar cada passo do desenvolvimento. 🎯
+
+**O produto em uma linha:**
+Em 30 segundos, qualquer seller do ML sabe se vale entrar em um nicho — com dados reais da API e veredicto da IA calibrado para o perfil dele.
+
+**4 abas neste agente:**
+- **Chat IA** — me faça qualquer pergunta sobre o Radar
+- **Tarefas** — 4 sprints com 22 tarefas detalhadas (progresso salvo no Supabase)
+- **Documentação** — todo o processo técnico passo a passo + **Parâmetros configuráveis** do veredicto
+- **Rotina Semanal** — o que um seller lucrativo faz toda semana (checklist reiniciável)
+
+**Próximo passo imediato:**
+Sprint 1 → Tarefa 1: criar o repositório \`dnc-little\` no GitHub. Clique na aba Tarefas para ver o passo a passo completo.`);
+
+  document.getElementById('quick-row').innerHTML=[
+    'Por onde começar agora?',
+    'Como configurar os parâmetros do veredicto?',
+    'Como funciona o Worker multi-tenant?',
+    'O que diferencia o Radar dos concorrentes?',
+    'Me explica a rotina semanal do seller lucrativo',
+  ].map(q=>`<button class="qbtn" onclick="askQ('${q}')">${q}</button>`).join('');
+
+  document.getElementById('cinput').addEventListener('input',function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';});
+})();
+</script>
+</body>
+</html>
