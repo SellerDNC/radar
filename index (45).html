@@ -1,0 +1,1512 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Radar ML — Pesquisa de Mercado</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ml:#FFE600;--blue:#3483FA;--blue-d:#185FA5;
+  --green:#00A650;--gbg:#EAF3DE;--gbd:#97C459;
+  --red:#F04E37;--rbg:#FCEBEB;--rbd:#F09595;
+  --orange:#EF9F27;--obg:#FAEEDA;--obd:#E8AA36;
+  --gray:#F4F5F7;--bdr:#E5E7EB;--txt:#1C1E24;--muted:#9CA3AF;
+  --nav-h:50px;--rad:10px;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-5px)}40%,80%{transform:translateX(5px)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+html,body{height:100%;overflow:hidden}
+body{font-family:Inter,system-ui,sans-serif;background:var(--gray);color:var(--txt);font-size:13px;display:flex;flex-direction:column}
+
+/* ═══ NAV ═══ */
+nav{height:var(--nav-h);background:var(--ml);display:flex;align-items:center;padding:0 14px;gap:8px;box-shadow:0 2px 8px rgba(0,0,0,.12);z-index:100;flex-shrink:0;overflow:hidden}
+.logo{display:flex;align-items:center;gap:6px;flex-shrink:0;margin-right:8px}
+.logo-box{width:26px;height:26px;background:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center}
+.logo-name{font-size:15px;font-weight:900}
+.logo-badge{font-size:8px;font-weight:800;background:var(--blue);color:#fff;padding:1px 5px;border-radius:4px}
+.nav-pills{display:flex;gap:1px;background:rgba(0,0,0,.12);border-radius:16px;padding:2px;overflow:hidden}
+.np-btn{padding:3px 10px;border:none;border-radius:13px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;color:rgba(0,0,0,.5);background:transparent;white-space:nowrap}
+.np-btn.on{background:#fff;color:var(--blue)}
+.nav-r{margin-left:auto;display:flex;align-items:center;gap:6px;flex-shrink:0}
+
+/* API STATUS — ícones grandes e coloridos */
+.api-chip{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:16px;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;border:2px solid transparent;white-space:nowrap}
+.api-chip .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.api-chip.setup{background:rgba(240,78,55,.15);border-color:var(--red);color:var(--red)}
+.api-chip.setup .dot{background:var(--red);animation:pulse 1.5s infinite}
+.api-chip.ok{background:rgba(0,166,80,.15);border-color:var(--green);color:#006630}
+.api-chip.ok .dot{background:var(--green)}
+.api-chip.off{background:rgba(0,0,0,.1);border-color:rgba(0,0,0,.15);color:rgba(0,0,0,.45)}
+.api-chip.off .dot{background:rgba(0,0,0,.25)}
+
+/* TOKEN COUNTER */
+.tok-pill{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:16px;background:rgba(0,0,0,.1);font-size:11px;font-weight:700;cursor:pointer;border:2px solid transparent;white-space:nowrap}
+.tok-pill:hover{border-color:rgba(0,0,0,.15)}
+
+/* ═══ MAIN LAYOUT ═══ */
+.main{display:grid;grid-template-columns:360px 1fr;flex:1;overflow:hidden;gap:0}
+.left-col{display:flex;flex-direction:column;height:calc(100vh - var(--nav-h));overflow:hidden;border-right:1px solid var(--bdr);background:#fff}
+.right-col{height:calc(100vh - var(--nav-h));overflow:hidden;background:var(--gray);display:flex;flex-direction:column}
+
+/* LEFT COLUMN SECTIONS */
+.left-top{flex-shrink:0;padding:14px;border-bottom:1px solid var(--bdr)}
+.left-mid{flex:1;overflow-y:auto;padding:14px}
+.left-bot{flex-shrink:0;border-top:1px solid var(--bdr);background:#F9FAFB}
+
+/* ONBOARDING BANNER */
+.ob-banner{background:linear-gradient(135deg,var(--blue-d),var(--blue));color:#fff;border-radius:8px;padding:12px 14px;margin-bottom:12px;display:none}
+.ob-banner.show{display:block;animation:fade .3s}
+.ob-title{font-size:13px;font-weight:700;margin-bottom:4px}
+.ob-body{font-size:11px;opacity:.85;line-height:1.6}
+.ob-steps{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.ob-step{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:700;background:rgba(255,255,255,.2);padding:3px 8px;border-radius:12px}
+.ob-step.done{background:rgba(0,166,80,.35)}
+
+/* FORM */
+.lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);display:block;margin-bottom:4px}
+.lbl .req{color:var(--red);margin-left:2px}
+.row2{display:grid;grid-template-columns:1fr 130px;gap:10px;margin-bottom:12px}
+.inp{width:100%;height:38px;border:1.5px solid var(--bdr);border-radius:7px;padding:0 11px;font-size:13px;font-family:inherit;outline:none;transition:all .15s;background:#fff}
+.inp:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(52,131,250,.1)}
+.inp.err{border-color:var(--red)!important;background:#FFF5F5;animation:shake .4s}
+.inp.ok{border-color:var(--green)}
+.inp::placeholder{color:#D1D5DB}
+.ierr{font-size:11px;color:var(--red);margin-top:3px;display:none;font-weight:600}
+
+/* UPLOAD */
+.upz{border:1.5px dashed var(--bdr);border-radius:7px;padding:12px;text-align:center;cursor:pointer;position:relative;background:#FAFAFA;transition:all .15s;margin-bottom:10px;overflow:hidden}
+.upz:hover{border-color:var(--blue);background:#F0F7FF}
+.upz.has{border-style:solid;border-color:var(--blue);padding:0}
+.upz input{position:absolute;inset:0;opacity:0;cursor:pointer;z-index:2}
+#up-preview{width:100%;max-height:90px;object-fit:cover;display:none}
+
+/* MARKETPLACE CHECKBOXES */
+.mk-wrap{margin-bottom:12px}
+.mk-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+.mk-item{border:1.5px solid var(--bdr);border-radius:6px;padding:5px 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:9px;font-weight:700;transition:all .15s;text-align:center;color:var(--muted)}
+.mk-item input{display:none}
+.mk-item .mk-ico{font-size:15px}
+.mk-item.checked{border-color:var(--blue);background:#EBF3FB;color:var(--blue-d)}
+
+/* CHIPS */
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px}
+.chip{font-size:11px;padding:3px 9px;border-radius:14px;background:var(--gray);border:1px solid var(--bdr);color:#6B7280;cursor:pointer;font-family:inherit}
+.chip:hover{background:#EBF3FB;border-color:#85B7EB;color:var(--blue)}
+
+/* BUTTONS */
+.btn-primary{width:100%;height:42px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:7px}
+.btn-primary:hover{background:var(--blue-d)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.btn-sm{padding:6px 13px;border:1px solid var(--bdr);border-radius:7px;font-size:11px;font-weight:600;color:var(--txt);background:#fff;cursor:pointer;font-family:inherit}
+.btn-sm:hover{background:var(--gray)}
+.btn-sm.green{background:var(--green);color:#fff;border-color:var(--green)}
+.btn-sm.orange{background:var(--orange);color:#fff;border-color:var(--orange)}
+.btn-sm.red{background:var(--red);color:#fff;border-color:var(--red)}
+.btn-sm.blue{background:var(--blue);color:#fff;border-color:var(--blue)}
+
+/* PARAMS SECTION */
+.params-hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;user-select:none;background:#F9FAFB}
+.params-hdr:hover{background:#F0F7FF}
+.params-hdr-left{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:#374151}
+.params-hdr-right{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.params-body{padding:14px;display:none}
+.params-body.open{display:block;animation:fade .2s}
+.p-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:10px}
+.p-row2{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px}
+.p-field label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);display:block;margin-bottom:3px}
+.p-field input{width:100%;height:32px;border:1.5px solid var(--bdr);border-radius:6px;padding:0 9px;font-size:12px;font-family:inherit;outline:none}
+.p-field input:focus{border-color:var(--blue)}
+.p-field input.ok{border-color:var(--green);background:#F0FFF4}
+.p-field input.err{border-color:var(--red);background:#FFF5F5}
+.p-hint{font-size:10px;color:var(--muted);margin-top:2px;line-height:1.4}
+.p-key-wrap{position:relative}
+.p-key-status{position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:12px}
+.p-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:8px 0}
+.p-stat{background:#F9FAFB;border:1px solid var(--bdr);border-radius:6px;padding:6px 8px;text-align:center}
+.p-stat-l{font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase}
+.p-stat-v{font-size:14px;font-weight:800;margin-top:1px}
+.key-err-msg{font-size:11px;color:var(--red);font-weight:600;margin-top:4px;display:none}
+.key-err-msg.show{display:block}
+
+/* LOADING */
+.ld-wrap{text-align:center;padding:30px 20px}
+.ld-spin{width:36px;height:36px;border:3px solid var(--bdr);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+.ld-msg{font-size:13px;font-weight:600;color:#374151;margin-bottom:3px}
+.ld-sub{font-size:11px;color:var(--muted);margin-bottom:12px}
+.err-banner{background:var(--rbg);border:1px solid var(--rbd);border-radius:8px;padding:12px 14px;margin-top:12px;display:none}
+.err-banner.show{display:block;animation:fade .2s}
+.err-banner-title{font-weight:700;color:#A32D2D;margin-bottom:4px;font-size:13px}
+.err-banner-body{font-size:12px;color:#A32D2D;line-height:1.6}
+
+/* RIGHT PANEL */
+.rp-inner{flex:1;overflow-y:auto;padding:14px}
+.rp-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;padding:40px}
+.rp-empty-ico{font-size:48px;opacity:.25;margin-bottom:14px}
+.rp-empty-title{font-size:16px;font-weight:700;color:#374151;margin-bottom:6px}
+.rp-empty-sub{font-size:13px;color:var(--muted);max-width:300px;line-height:1.6}
+
+/* REPORT */
+.rpt-hdr{background:var(--blue);padding:12px 16px;display:flex;align-items:center;gap:9px;flex-shrink:0}
+.rpt-title{font-size:14px;font-weight:700;color:#fff;flex:1}
+.rpt-meta{font-size:10px;color:rgba(255,255,255,.65);text-align:right}
+.tabs-wrap{display:flex;border-bottom:1px solid var(--bdr);background:#fff;overflow-x:auto;flex-shrink:0}
+.tb{padding:9px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;border:none;border-bottom:2px solid transparent;color:#6B7280;background:none;font-family:inherit}
+.tb.on{color:var(--blue);border-bottom-color:var(--blue)}
+.tp{display:none;padding:14px;overflow-y:auto}
+.tp.on{display:block;animation:fade .15s}
+
+/* CLASSIFY */
+.clf{display:flex;gap:6px;padding:10px 14px;border-top:1px solid var(--bdr);background:#FAFAFA;flex-shrink:0;flex-wrap:wrap}
+.clf-lbl{width:100%;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:2px}
+.clf-btn{flex:1;min-width:90px;padding:8px;border:2px solid var(--bdr);border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:#fff;display:flex;align-items:center;justify-content:center;gap:4px;transition:all .15s}
+.clf-btn.ap{border-color:var(--green);color:var(--green)}.clf-btn.ap:hover,.clf-btn.ap.on{background:var(--green);color:#fff}
+.clf-btn.sb{border-color:var(--orange);color:var(--orange)}.clf-btn.sb:hover,.clf-btn.sb.on{background:var(--orange);color:#fff}
+.clf-btn.rp{border-color:var(--red);color:var(--red)}.clf-btn.rp:hover,.clf-btn.rp.on{background:var(--red);color:#fff}
+
+/* NO DEMAND */
+.nd{text-align:center;padding:32px 20px}
+.nd-ico{font-size:42px;opacity:.4;margin-bottom:10px}
+.nd-title{font-size:15px;font-weight:800;margin-bottom:5px}
+.nd-sub{font-size:12px;color:#6B7280;margin-bottom:16px;line-height:1.6;max-width:320px;margin-left:auto;margin-right:auto}
+.nd-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;max-width:360px;margin:0 auto 18px}
+
+/* INLINE COMPONENTS */
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:12px}
+.kpi{background:#F9FAFB;border:1px solid var(--bdr);border-radius:8px;padding:9px 11px}
+.kpi-l{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:2px}
+.kpi-v{font-size:18px;font-weight:800}.kpi-v.green{color:var(--green)}.kpi-v.blue{color:var(--blue)}.kpi-v.red{color:var(--red)}.kpi-v.orange{color:var(--orange)}
+.kpi-s{font-size:10px;color:var(--muted)}
+.box{border-radius:8px;padding:10px 13px;margin-bottom:7px}
+.box-g{background:var(--gbg);border:1px solid var(--gbd);color:#3B6D11}
+.box-r{background:var(--rbg);border:1px solid var(--rbd);color:#A32D2D}
+.box-o{background:var(--obg);border:1px solid var(--obd);color:#854F0B}
+.box-b{background:#EBF3FB;border:1px solid #85B7EB;color:#185FA5}
+.box-title{font-size:13px;font-weight:700;margin-bottom:3px}
+.box-body{font-size:12px;line-height:1.6}
+.prog{height:7px;background:var(--bdr);border-radius:7px;overflow:hidden;margin:5px 0 2px}
+.prog-fill{height:100%;border-radius:7px}.prog-fill.green{background:var(--green)}.prog-fill.blue{background:var(--blue)}.prog-fill.orange{background:var(--orange)}.prog-fill.red{background:var(--red)}
+.pill{display:inline-flex;padding:2px 7px;border-radius:14px;font-size:10px;font-weight:700}
+.pill-g{background:var(--gbg);color:#3B6D11}.pill-o{background:var(--obg);color:#854F0B}.pill-b{background:#EBF3FB;color:#185FA5}.pill-r{background:var(--rbg);color:#A32D2D}.pill-x{background:var(--gray);color:#6B7280}
+.sec{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:14px 0 7px;padding-bottom:3px;border-bottom:1px solid var(--bdr)}
+.sec:first-child{margin-top:0}
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{text-align:left;padding:5px 7px;color:var(--muted);border-bottom:1px solid var(--bdr);font-size:10px;font-weight:700;text-transform:uppercase}
+.tbl td{padding:6px 7px;border-bottom:1px solid #F9FAFB}
+.tbl tr:last-child td{border:none}
+.note{font-size:11px;color:var(--muted);margin-top:5px;font-style:italic}
+.scores-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px}
+.score-card{background:#F9FAFB;border:1px solid var(--bdr);border-radius:7px;padding:9px 11px}
+.score-dim{font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:3px}
+.score-val{font-size:18px;font-weight:800}
+.tchart{display:flex;align-items:flex-end;gap:2px;height:80px;margin-bottom:5px}
+.tbar-w{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px}
+.tbar{width:100%;border-radius:2px 2px 0 0}
+.tlbl{font-size:7px;color:var(--muted);writing-mode:vertical-rl;transform:rotate(180deg);height:18px;overflow:hidden}
+.reg-row{margin-bottom:6px}
+.reg-top{display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px}
+.reg-track{height:10px;background:var(--gray);border-radius:2px;overflow:hidden}
+.reg-fill{height:100%;border-radius:2px;background:var(--blue)}
+.bundle-c{background:#F9FAFB;border:1px solid var(--bdr);border-radius:7px;padding:9px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+.hist-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;cursor:pointer;transition:background .1s;border-bottom:1px solid #F9FAFB}
+.hist-item:last-child{border:none}
+.hist-item:hover{background:#F0F7FF}
+.hist-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.hist-dot.ap{background:var(--green)}.hist-dot.sb{background:var(--orange)}.hist-dot.rp{background:var(--red)}.hist-dot.pe{background:var(--muted)}
+.chart-wrap{display:flex;align-items:center;gap:14px;padding:10px 0}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:11px}
+.legend-dot{width:9px;height:9px;border-radius:50%}
+.legend-val{font-weight:800;font-size:13px;margin-left:auto;min-width:22px;text-align:right}
+.queue-item{display:flex;align-items:center;gap:9px;padding:8px 11px;border-radius:8px;border:1px solid var(--bdr);margin-bottom:5px;background:#fff}
+.q-num{width:22px;height:22px;border-radius:50%;background:var(--green);color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+/* TOAST */
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);padding:10px 18px;border-radius:9px;font-size:12px;font-weight:700;z-index:9999;display:flex;align-items:center;gap:9px;box-shadow:0 4px 20px rgba(0,0,0,.2);animation:fade .2s;max-width:460px;white-space:nowrap}
+.toast.error{background:#A32D2D;color:#fff}
+.toast.warn{background:#854F0B;color:#fff}
+.toast.ok{background:#006630;color:#fff}
+.toast-x{cursor:pointer;opacity:.7;font-size:14px}
+
+/* MODAL SETTINGS */
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(2px)}
+.mo.open{display:flex;animation:fade .2s}
+.mo-box{background:#fff;border-radius:12px;width:560px;max-width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden}
+.mo-hdr{background:var(--blue);padding:14px 18px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.mo-hdr h3{font-size:14px;font-weight:800;color:#fff}
+.mo-close{background:rgba(255,255,255,.2);border:none;border-radius:6px;padding:4px 9px;color:#fff;font-size:15px;cursor:pointer;font-weight:700}
+.mo-tabs{display:flex;border-bottom:1px solid var(--bdr);background:#F9FAFB;flex-shrink:0;overflow-x:auto}
+.mo-tab{padding:9px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;border:none;border-bottom:2px solid transparent;color:#6B7280;background:none;font-family:inherit}
+.mo-tab.on{color:var(--blue);border-bottom-color:var(--blue);background:#fff}
+.mo-body{padding:16px;overflow-y:auto;flex:1}
+.mo-pane{display:none}
+.mo-pane.on{display:block;animation:fade .2s}
+.mo-footer{padding:12px 16px;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end;gap:7px;background:#F9FAFB;flex-shrink:0}
+.mo-info{background:#EBF3FB;border:1px solid #85B7EB;border-radius:7px;padding:9px 12px;font-size:12px;color:#185FA5;margin-bottom:12px;line-height:1.5}
+.mo-field{margin-bottom:12px}
+.mo-field label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);display:block;margin-bottom:4px}
+.mo-field input,.mo-field textarea{width:100%;border:1.5px solid var(--bdr);border-radius:7px;padding:7px 11px;font-size:13px;font-family:inherit;outline:none;resize:vertical}
+.mo-field input:focus,.mo-field textarea:focus{border-color:var(--blue)}
+.mo-field .hint{font-size:11px;color:var(--muted);margin-top:3px}
+.gloss-sec{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:14px 0 7px;padding-bottom:3px;border-bottom:1px solid var(--bdr)}
+.gloss-sec:first-child{margin-top:0}
+.gloss-i{margin-bottom:8px}
+.gloss-t{font-size:12px;font-weight:700;margin-bottom:2px}
+.gloss-d{font-size:12px;color:#6B7280;line-height:1.55}
+
+@media(max-width:820px){
+  html,body{overflow:auto}
+  .main{grid-template-columns:1fr}
+  .left-col,.right-col{height:auto;overflow:visible}
+  .right-col{min-height:400px}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════ NAV ═══════ -->
+<nav>
+  <div class="logo">
+    <div class="logo-box">
+      <svg width="13" height="13" viewBox="0 0 22 22" fill="none" stroke="#3483FA" stroke-width="2.2">
+        <circle cx="9" cy="9" r="6"/><line x1="14" y1="14" x2="20" y2="20" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <span class="logo-name">Radar</span>
+    <span class="logo-badge">ML</span>
+  </div>
+
+  <div class="nav-pills">
+    <button class="np-btn on" onclick="goNav('radar',this)">🔍 Radar</button>
+    <button class="np-btn" onclick="goNav('ranking',this)">📍 Ranking</button>
+    <button class="np-btn" onclick="goNav('dashboard',this)">📊 Dashboard</button>
+    <button class="np-btn" onclick="goNav('diag',this)">🏥 Diagnóstico</button>
+    <button class="np-btn" onclick="goNav('agente',this)">🤖 Agente</button>
+  </div>
+
+  <div class="nav-r">
+    <!-- Claude API Status -->
+    <div class="api-chip setup" id="chip-claude" onclick="openModal('api')" title="Configurar Claude API">
+      <div class="dot"></div>
+      <span>Claude</span>
+      <span id="chip-claude-lbl">— Configurar</span>
+    </div>
+
+    <!-- ML Status -->
+    <div class="api-chip off" id="chip-ml" onclick="toggleML()" title="Conectar Mercado Livre">
+      <div class="dot"></div>
+      <span>ML</span>
+      <span id="chip-ml-lbl">— Desconectado</span>
+    </div>
+
+    <!-- Token counter -->
+    <div class="tok-pill" onclick="openModal('api')" title="Ver custos">
+      💰<span id="nav-cost">$0.000</span>
+      <span style="color:rgba(0,0,0,.3)">|</span>
+      🔢<span id="nav-n">0</span>
+    </div>
+
+    <button onclick="openModal('gloss')" style="background:rgba(0,0,0,.1);border:none;border-radius:6px;padding:4px 9px;font-size:12px;cursor:pointer;font-weight:700" title="Glossário e configurações avançadas">📖</button>
+  </div>
+</nav>
+
+<!-- ═══════ MAIN ═══════ -->
+<div class="main" id="page-radar">
+
+  <!-- ══ LEFT COLUMN ══ -->
+  <div class="left-col">
+
+    <!-- SEARCH FORM -->
+    <div class="left-top" style="overflow-y:auto;flex:1;padding:14px">
+
+      <!-- ONBOARDING -->
+      <div class="ob-banner" id="ob-banner">
+        <div class="ob-title">👋 Bem-vindo ao Radar ML!</div>
+        <div class="ob-body">Para começar a analisar produtos, preencha os parâmetros abaixo. Siga os passos:</div>
+        <div class="ob-steps">
+          <div class="ob-step" id="ob-s1">1️⃣ API Key</div>
+          <div class="ob-step" id="ob-s2">2️⃣ Taxas ML</div>
+          <div class="ob-step" id="ob-s3">3️⃣ Produto + Custo</div>
+          <div class="ob-step done">4️⃣ Analisar!</div>
+        </div>
+      </div>
+
+      <!-- FORMULÁRIO -->
+      <div id="search-form">
+        <div class="row2">
+          <div>
+            <label class="lbl">Produto<span class="req">*</span></label>
+            <input class="inp" id="f-produto" placeholder="alicate de pesca alumínio"
+              onkeydown="if(event.key==='Enter')doAnalyze()"
+              oninput="onFieldInput(this,'ie-produto')">
+            <div class="ierr" id="ie-produto">⚠️ Informe o nome do produto</div>
+          </div>
+          <div>
+            <label class="lbl">Custo R$<span class="req">*</span></label>
+            <input class="inp" id="f-custo" type="number" step="0.01" placeholder="12.50"
+              onkeydown="if(event.key==='Enter')doAnalyze()"
+              oninput="onFieldInput(this,'ie-custo')">
+            <div class="ierr" id="ie-custo">⚠️ Informe o custo</div>
+          </div>
+        </div>
+
+        <label class="lbl">Foto <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">(opcional)</span></label>
+        <div class="upz" id="upz">
+          <input type="file" accept="image/*" onchange="handlePhoto(this)">
+          <div id="up-empty" style="font-size:12px;color:#9CA3AF;padding:4px 0">
+            <div style="font-size:20px;opacity:.3;margin-bottom:4px">📷</div>
+            Foto (IA identifica o produto)
+          </div>
+          <img id="up-preview" alt="">
+        </div>
+
+        <div class="mk-wrap">
+          <label class="lbl">Pesquisar em</label>
+          <div class="mk-grid">
+            <label class="mk-item checked" id="mki-ml"><input type="checkbox" id="mk-ml" checked onchange="mkStyle()"><div class="mk-ico">🛒</div>ML</label>
+            <label class="mk-item" id="mki-sh"><input type="checkbox" id="mk-sh" onchange="mkStyle()"><div class="mk-ico">🧡</div>Shopee</label>
+            <label class="mk-item" id="mki-az"><input type="checkbox" id="mk-az" onchange="mkStyle()"><div class="mk-ico">📦</div>Amazon</label>
+            <label class="mk-item" id="mki-gg"><input type="checkbox" id="mk-gg" onchange="mkStyle()"><div class="mk-ico">🔍</div>Google</label>
+            <label class="mk-item" id="mki-us"><input type="checkbox" id="mk-us" onchange="mkStyle()"><div class="mk-ico">🇺🇸</div>Amazon US</label>
+          </div>
+        </div>
+
+        <div class="chips">
+          <span class="chip" onclick="fill('alicate pesca alumínio','12.50')">Alicate pesca</span>
+          <span class="chip" onclick="fill('smartwatch feminino','45')">Smartwatch</span>
+          <span class="chip" onclick="fill('mochila impermeável','35')">Mochila</span>
+          <span class="chip" onclick="fill('suporte notebook','22')">Suporte notebook</span>
+          <span class="chip" onclick="fill('luminária led','28')">Luminária LED</span>
+        </div>
+
+        <button class="btn-primary" id="btn-analyze" onclick="doAnalyze()">
+          <svg width="13" height="13" viewBox="0 0 22 22" fill="none" stroke="#fff" stroke-width="2"><circle cx="9" cy="9" r="6"/><line x1="14" y1="14" x2="20" y2="20" stroke-linecap="round"/></svg>
+          Analisar produto
+        </button>
+        <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px">Pesquisa real via IA + web</div>
+      </div>
+
+      <!-- LOADING -->
+      <div id="loading-form" style="display:none">
+        <div class="ld-wrap">
+          <div class="ld-spin" id="ld-spin"></div>
+          <div class="ld-msg" id="ld-msg">Pesquisando…</div>
+          <div class="ld-sub">Pode levar até 30 segundos</div>
+          <button class="btn-sm" onclick="doCancel()">← Cancelar</button>
+          <div class="err-banner" id="err-banner">
+            <div class="err-banner-title" id="err-title">Erro</div>
+            <div class="err-banner-body" id="err-body"></div>
+            <button class="btn-sm" onclick="doCancel()" style="margin-top:9px">← Voltar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PARAMS -->
+    <div class="left-bot">
+      <div class="params-hdr" onclick="toggleParams()">
+        <div class="params-hdr-left">
+          ⚙️ Parâmetros
+          <span id="params-cfg-badge" style="display:none;font-size:10px;background:var(--green);color:#fff;padding:1px 7px;border-radius:10px;font-weight:700">✓ Configurado</span>
+          <span id="params-err-badge" style="display:none;font-size:10px;background:var(--red);color:#fff;padding:1px 7px;border-radius:10px;font-weight:700">⚠️ Configure primeiro</span>
+        </div>
+        <div class="params-hdr-right">
+          <span id="params-cost-mini">$0.000 · 0 pesquisas</span>
+          <span id="params-arrow">▲</span>
+        </div>
+      </div>
+      <div class="params-body open" id="params-body">
+
+        <!-- API KEY -->
+        <div style="margin-bottom:10px">
+          <label style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);display:block;margin-bottom:4px">
+            🔑 Claude API Key <span style="color:var(--red)">*</span>
+          </label>
+          <div class="p-key-wrap">
+            <input class="p-field input" id="pk-key" type="password" placeholder="sk-ant-..."
+              style="width:100%;height:36px;border:1.5px solid var(--bdr);border-radius:7px;padding:0 32px 0 11px;font-size:13px;font-family:inherit;outline:none"
+              oninput="onKeyInput(this)">
+            <span class="p-key-status" id="key-status-icon">❌</span>
+          </div>
+          <div class="key-err-msg" id="key-err-msg">⚠️ API Key obrigatória para pesquisar. Obtenha em console.anthropic.com</div>
+          <div class="p-stats">
+            <div class="p-stat"><div class="p-stat-l">Pesquisas</div><div class="p-stat-v" id="ps-n">0</div></div>
+            <div class="p-stat"><div class="p-stat-l">Tokens</div><div class="p-stat-v" id="ps-tok">0</div></div>
+            <div class="p-stat"><div class="p-stat-l">Custo</div><div class="p-stat-v" id="ps-cost">$0.00</div></div>
+          </div>
+        </div>
+
+        <!-- TAXAS -->
+        <div style="margin-bottom:10px">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px">💰 Taxas ML</div>
+          <div class="p-row">
+            <div class="p-field"><label>Clássico %</label><input id="pk-tc" type="number" step="0.1" placeholder="11.5"></div>
+            <div class="p-field"><label>Premium %</label><input id="pk-tp" type="number" step="0.1" placeholder="16"></div>
+            <div class="p-field"><label>Fixa R$</label><input id="pk-tf" type="number" step="0.5" placeholder="7"></div>
+          </div>
+        </div>
+
+        <!-- CRITÉRIOS -->
+        <div style="margin-bottom:10px">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px">📊 Critérios</div>
+          <div class="p-row2">
+            <div class="p-field"><label>Vendas mín. C1</label><input id="pk-vm" type="number" placeholder="500"></div>
+            <div class="p-field"><label>Margem mín. %</label><input id="pk-mm" type="number" placeholder="25"></div>
+          </div>
+        </div>
+
+        <!-- CONTEXTO -->
+        <div style="margin-bottom:10px">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px">🧠 Contexto da IA</div>
+          <textarea id="pk-ctx" rows="2"
+            style="width:100%;border:1.5px solid var(--bdr);border-radius:7px;padding:7px 11px;font-size:12px;font-family:inherit;outline:none;resize:none"
+            placeholder="Ex: Vendo produtos de pesca, margem mín. real 30%, prefiro itens &lt;1kg..."></textarea>
+        </div>
+
+        <button onclick="doSaveParams()" style="width:100%;height:34px;background:#374151;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
+          💾 Salvar parâmetros
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ RIGHT COLUMN ══ -->
+  <div class="right-col">
+    <!-- Empty State -->
+    <div class="rp-inner" id="rp-empty-wrap">
+      <div class="rp-empty">
+        <div class="rp-empty-ico">🔍</div>
+        <div class="rp-empty-title">Pronto para analisar</div>
+        <div class="rp-empty-sub">Preencha o produto e custo no painel esquerdo, configure os parâmetros abaixo e clique em <strong>Analisar</strong></div>
+      </div>
+    </div>
+
+    <!-- Result -->
+    <div id="rp-result-wrap" style="display:none;flex-direction:column;height:100%;overflow:hidden;flex:1">
+      <div class="rpt-hdr">
+        <div class="rpt-title" id="rpt-title">MercadoX</div>
+        <div class="rpt-meta" id="rpt-meta"></div>
+      </div>
+      <div class="tabs-wrap">
+        <button class="tb on" onclick="showTab(0,this)">📊 Análise</button>
+        <button class="tb" onclick="showTab(1,this)">💰 Financeiro</button>
+        <button class="tb" onclick="showTab(2,this)">📈 Trends</button>
+        <button class="tb" onclick="showTab(3,this)">🗺️ Regiões</button>
+        <button class="tb" onclick="showTab(4,this)">🗂️ Categorias</button>
+        <button class="tb" onclick="showTab(5,this);loadHistory()">🕐 Histórico</button>
+        <button class="tb" onclick="showTab(6,this);loadQueue()">✅ Fila</button>
+      </div>
+      <div style="flex:1;overflow:hidden;display:flex;flex-direction:column">
+        <div class="tp on" id="tp0" style="overflow-y:auto;flex:1"></div>
+        <div class="tp" id="tp1" style="overflow-y:auto;flex:1"></div>
+        <div class="tp" id="tp2" style="overflow-y:auto;flex:1"></div>
+        <div class="tp" id="tp3" style="overflow-y:auto;flex:1"></div>
+        <div class="tp" id="tp4" style="overflow-y:auto;flex:1"></div>
+        <div class="tp" id="tp5" style="overflow-y:auto;flex:1"></div>
+        <div class="tp" id="tp6" style="overflow-y:auto;flex:1"></div>
+      </div>
+      <div class="clf">
+        <div class="clf-lbl">Classificar esta pesquisa:</div>
+        <button class="clf-btn ap" onclick="doClassify('aprovado')">✅ Aprovado → Fila</button>
+        <button class="clf-btn sb" onclick="doClassify('standby')">⏸ Standby</button>
+        <button class="clf-btn rp" onclick="doClassify('reprovado')">❌ Reprovado</button>
+      </div>
+    </div>
+
+    <!-- No Demand -->
+    <div id="rp-nd-wrap" style="display:none" class="rp-inner">
+      <div class="nd">
+        <div class="nd-ico">📉</div>
+        <div class="nd-title">Sem demanda comprovada</div>
+        <div class="nd-sub" id="nd-sub"></div>
+        <div class="nd-stats" id="nd-stats"></div>
+        <button class="btn-sm blue" onclick="doCancel()">🔍 Nova análise</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OTHER PAGES (placeholders) -->
+<div class="main" id="page-ranking" style="display:none"><div style="margin:auto;text-align:center;padding:60px;color:var(--muted)"><div style="font-size:48px;opacity:.2">📍</div><div style="font-size:16px;font-weight:700;margin-top:12px">Ranking em breve</div></div></div>
+<div class="main" id="page-dashboard" style="display:none"><div style="margin:auto;text-align:center;padding:60px;color:var(--muted)"><div style="font-size:48px;opacity:.2">📊</div><div style="font-size:16px;font-weight:700;margin-top:12px">Dashboard em breve</div></div></div>
+<div class="main" id="page-diag" style="display:none"><div style="margin:auto;text-align:center;padding:60px;color:var(--muted)"><div style="font-size:48px;opacity:.2">🏥</div><div style="font-size:16px;font-weight:700;margin-top:12px">Diagnóstico em breve</div></div></div>
+<div class="main" id="page-agente" style="display:none"><div style="margin:auto;text-align:center;padding:60px;color:var(--muted)"><div style="font-size:48px;opacity:.2">🤖</div><div style="font-size:16px;font-weight:700;margin-top:12px">Agente IA em breve</div></div></div>
+
+<!-- ═══════ SETTINGS MODAL ═══════ -->
+<div class="mo" id="mo" onclick="if(event.target===this)closeMo()">
+  <div class="mo-box">
+    <div class="mo-hdr"><h3>⚙️ Configurações avançadas</h3><button class="mo-close" onclick="closeMo()">✕</button></div>
+    <div class="mo-tabs">
+      <button class="mo-tab on" onclick="showMoTab(0,this)">🔑 API</button>
+      <button class="mo-tab" onclick="showMoTab(1,this)">🧠 Treinamento</button>
+      <button class="mo-tab" onclick="showMoTab(2,this)">📖 Glossário</button>
+    </div>
+    <div class="mo-body">
+      <div class="mo-pane on" id="mp0">
+        <div class="mo-info">Configure aqui sua API Key e meta mensal. Os parâmetros de análise ficam visíveis no painel esquerdo.</div>
+        <div class="mo-field"><label>Claude API Key</label><input id="mo-key" type="password" placeholder="sk-ant-..."><div class="hint">console.anthropic.com → API Keys → Create Key</div></div>
+        <div class="mo-field"><label>Meta mensal R$</label><input id="mo-meta" type="number" placeholder="80000"></div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:12px 0 6px">
+          <div style="background:#F9FAFB;border:1px solid var(--bdr);border-radius:7px;padding:9px;text-align:center">
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--muted)">Pesquisas</div>
+            <div style="font-size:18px;font-weight:800;margin-top:2px" id="mo-stat-n">0</div>
+          </div>
+          <div style="background:#F9FAFB;border:1px solid var(--bdr);border-radius:7px;padding:9px;text-align:center">
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--muted)">Tokens</div>
+            <div style="font-size:18px;font-weight:800;margin-top:2px" id="mo-stat-tok">0</div>
+          </div>
+          <div style="background:#F9FAFB;border:1px solid var(--bdr);border-radius:7px;padding:9px;text-align:center">
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--muted)">Custo USD</div>
+            <div style="font-size:18px;font-weight:800;margin-top:2px" id="mo-stat-cost">$0.00</div>
+          </div>
+        </div>
+        <button class="btn-sm" onclick="doClearCost()">🗑️ Zerar contador</button>
+      </div>
+      <div class="mo-pane" id="mp1">
+        <div class="mo-info">Descreva sua operação para personalizar as análises. A IA usa esse contexto em cada pesquisa.</div>
+        <div class="mo-field">
+          <label>Contexto do negócio</label>
+          <textarea id="mo-ctx" rows="5" placeholder="Ex: Vendo produtos de pesca no ML. Público: pescadores amadores. Margem mínima real: 30%. Prefiro produtos leves (&lt;1kg). Ticket médio: R$65..."></textarea>
+          <div class="hint">Seja específico: categorias, público-alvo, restrições logísticas, capital disponível</div>
+        </div>
+        <div class="mo-field">
+          <label>Documento de referência (PDF / TXT)</label>
+          <div style="border:1.5px dashed var(--bdr);border-radius:7px;padding:12px;text-align:center;cursor:pointer;position:relative;background:#FAFAFA;font-size:12px;color:var(--muted)">
+            <input type="file" accept=".pdf,.txt,.md" onchange="handleDoc(this)" style="position:absolute;inset:0;opacity:0;cursor:pointer">
+            📄 Clique para carregar PDF ou TXT
+            <div id="doc-name" style="display:none;margin-top:5px;font-weight:600;color:var(--blue)"></div>
+          </div>
+        </div>
+      </div>
+      <div class="mo-pane" id="mp2">
+        <div class="gloss-sec">Critérios de aprovação</div>
+        <div class="gloss-i"><div class="gloss-t">C1 — Demanda comprovada</div><div class="gloss-d">Exige que N anúncios (padrão: 3) tenham X vendas (padrão: 500) no período. Garante que há mercado real.</div></div>
+        <div class="gloss-i"><div class="gloss-t">C2 — Margem viável</div><div class="gloss-d">(Preço − Taxa% − Taxa fixa − Custo) ÷ Preço. Deve superar a margem mínima configurada.</div></div>
+        <div class="gloss-sec">Scores (0–100)</div>
+        <div class="gloss-i"><div class="gloss-t">Demanda</div><div class="gloss-d">Volume de vendas mensais e velocidade diária.</div></div>
+        <div class="gloss-i"><div class="gloss-t">Concorrência</div><div class="gloss-d">Quantidade de anúncios ativos. Score alto = menos concorrentes.</div></div>
+        <div class="gloss-i"><div class="gloss-t">Margem</div><div class="gloss-d">Rentabilidade com suas taxas. Alto = confortável acima do mínimo.</div></div>
+        <div class="gloss-i"><div class="gloss-t">Tendência</div><div class="gloss-d">Comportamento do interesse nos últimos 24 meses.</div></div>
+        <div class="gloss-i"><div class="gloss-t">Logística</div><div class="gloss-d">Facilidade de envio (peso, tamanho, fragilidade).</div></div>
+        <div class="gloss-i"><div class="gloss-t">Escala</div><div class="gloss-d">Potencial de crescimento do produto.</div></div>
+        <div class="gloss-sec">Status</div>
+        <div class="gloss-i"><div class="gloss-t">✅ Aprovado</div><div class="gloss-d">C1 e C2 atingidos. Vai para a fila de compras.</div></div>
+        <div class="gloss-i"><div class="gloss-t">⚠️ Alto Potencial</div><div class="gloss-d">C1 ok mas margem baixa. Vale negociar custo ou ajustar preço.</div></div>
+        <div class="gloss-i"><div class="gloss-t">❌ Descartado</div><div class="gloss-d">C1 não atingido. Sem demanda comprovada.</div></div>
+      </div>
+    </div>
+    <div class="mo-footer">
+      <button class="btn-sm" onclick="closeMo()">Fechar</button>
+      <button class="btn-sm blue" onclick="doSaveMo()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+//  CONSTANTS
+// ═══════════════════════════════════════
+const W   = 'https://ml-radar.godoyodontologia.workers.dev';
+const ANT = 'https://api.anthropic.com/v1/messages';
+const MDL = 'claude-sonnet-4-6';
+const PRICE_IN = 3 / 1_000_000;
+const PRICE_OUT= 15/ 1_000_000;
+
+// Tenant ID (Fase 1: localStorage)
+const TID = (() => {
+  let t = localStorage.getItem('r-tid');
+  if (!t) { t = 'u_' + Math.random().toString(36).slice(2,10); localStorage.setItem('r-tid', t); }
+  return t;
+})();
+
+// Config getters — fonte única de verdade: localStorage
+const CFG = {
+  get key()  { return localStorage.getItem('r-key')  || ''; },
+  get meta() { return parseFloat(localStorage.getItem('r-meta') || 80000); },
+  get tc()   { return parseFloat(localStorage.getItem('r-tc')   || 11.5) / 100; },
+  get tp()   { return parseFloat(localStorage.getItem('r-tp')   || 16)   / 100; },
+  get tf()   { return parseFloat(localStorage.getItem('r-tf')   || 7); },
+  get vm()   { return parseInt(localStorage.getItem('r-vm')     || 500); },
+  get mm()   { return parseFloat(localStorage.getItem('r-mm')   || 25); },
+  get an()   { return parseInt(localStorage.getItem('r-an')     || 3); },
+  get ctx()  { return localStorage.getItem('r-ctx')  || ''; },
+  get doc()  { return localStorage.getItem('r-doc')  || ''; },
+};
+
+// State
+let PHOTO_B64 = null;
+let SEARCH_ID = null;
+let LAST_D    = null;
+
+// ═══════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMo(); });
+
+window.onload = async () => {
+  if (new URLSearchParams(location.search).get('ml_connected') === '1')
+    history.replaceState({}, '', '/');
+  loadParamsUI();
+  refreshNavStats();
+  updateChipClaude();
+  checkParams(); // onboarding
+  await checkAuth();
+};
+
+// ═══════════════════════════════════════
+//  NAV
+// ═══════════════════════════════════════
+function goNav(name, btn) {
+  ['radar','ranking','dashboard','diag','agente'].forEach(p => {
+    const el = document.getElementById('page-' + p);
+    if (el) el.style.display = 'none';
+  });
+  document.querySelectorAll('.np-btn').forEach(b => b.classList.remove('on'));
+  const el = document.getElementById('page-' + name);
+  if (el) el.style.display = 'grid';
+  if (btn) btn.classList.add('on');
+}
+
+// ═══════════════════════════════════════
+//  ONBOARDING / PARAMS CHECK
+// ═══════════════════════════════════════
+function checkParams() {
+  const hasKey  = CFG.key.startsWith('sk-');
+  const hasTax  = !!localStorage.getItem('r-tc');
+  const banner  = document.getElementById('ob-banner');
+  const cfgBadge= document.getElementById('params-cfg-badge');
+  const errBadge= document.getElementById('params-err-badge');
+  const s1 = document.getElementById('ob-s1');
+  const s2 = document.getElementById('ob-s2');
+
+  if (!hasKey || !hasTax) {
+    banner.classList.add('show');
+    if (hasKey) s1.classList.add('done');
+    if (hasTax) s2.classList.add('done');
+    cfgBadge.style.display = 'none';
+    errBadge.style.display = 'inline-flex';
+  } else {
+    banner.classList.remove('show');
+    cfgBadge.style.display = 'inline-flex';
+    errBadge.style.display = 'none';
+  }
+  updateChipClaude();
+}
+
+// ═══════════════════════════════════════
+//  PARAMS PANEL
+// ═══════════════════════════════════════
+function loadParamsUI() {
+  const map = [['r-key','pk-key'],['r-tc','pk-tc'],['r-tp','pk-tp'],['r-tf','pk-tf'],
+               ['r-vm','pk-vm'],['r-mm','pk-mm'],['r-ctx','pk-ctx']];
+  map.forEach(([k,id]) => {
+    const el = document.getElementById(id);
+    if (el && localStorage.getItem(k)) el.value = localStorage.getItem(k);
+  });
+  // key icon
+  const keyEl = document.getElementById('pk-key');
+  if (keyEl) onKeyInput(keyEl, true);
+  refreshPanelStats();
+}
+
+function refreshPanelStats() {
+  const tokIn  = parseInt(localStorage.getItem('r-tok-in')  || 0);
+  const tokOut = parseInt(localStorage.getItem('r-tok-out') || 0);
+  const n      = parseInt(localStorage.getItem('r-searches-n') || 0);
+  const cost   = tokIn * PRICE_IN + tokOut * PRICE_OUT;
+  setEl('ps-n',    n);
+  setEl('ps-tok',  (tokIn + tokOut).toLocaleString('pt-BR'));
+  setEl('ps-cost', '$' + cost.toFixed(3));
+  setEl('params-cost-mini', '$' + cost.toFixed(3) + ' · ' + n + ' pesquisas');
+}
+
+function refreshNavStats() {
+  const tokIn  = parseInt(localStorage.getItem('r-tok-in')  || 0);
+  const tokOut = parseInt(localStorage.getItem('r-tok-out') || 0);
+  const n      = parseInt(localStorage.getItem('r-searches-n') || 0);
+  const cost   = tokIn * PRICE_IN + tokOut * PRICE_OUT;
+  setEl('nav-cost', '$' + cost.toFixed(3));
+  setEl('nav-n', n);
+}
+
+function doSaveParams() {
+  // Ler diretamente dos IDs únicos do painel
+  const map = [
+    ['r-key', 'pk-key'], ['r-tc', 'pk-tc'], ['r-tp', 'pk-tp'],
+    ['r-tf', 'pk-tf'],   ['r-vm', 'pk-vm'], ['r-mm', 'pk-mm'],
+    ['r-ctx', 'pk-ctx']
+  ];
+  let saved = 0;
+  map.forEach(([k, id]) => {
+    const el = document.getElementById(id);
+    if (el) { localStorage.setItem(k, el.value.trim()); saved++; }
+  });
+  updateChipClaude();
+  refreshPanelStats();
+  refreshNavStats();
+  checkParams();
+  toast('✅ Parâmetros salvos (' + saved + ' campos)', 'ok', 3000);
+}
+
+function doClearCost() {
+  if (!confirm('Zerar contador de tokens e custos?')) return;
+  ['r-tok-in','r-tok-out','r-searches-n'].forEach(k => localStorage.removeItem(k));
+  refreshPanelStats();
+  refreshNavStats();
+  toast('Contador zerado', 'ok', 2000);
+}
+
+function toggleParams() {
+  const body  = document.getElementById('params-body');
+  const arrow = document.getElementById('params-arrow');
+  const open  = body.classList.contains('open');
+  body.classList.toggle('open');
+  if (arrow) arrow.textContent = open ? '▼' : '▲';
+}
+
+// KEY INPUT VALIDATION
+function onKeyInput(inp, silent) {
+  const icon = document.getElementById('key-status-icon');
+  const err  = document.getElementById('key-err-msg');
+  const val  = inp.value.trim();
+  if (val.startsWith('sk-ant-') || val.startsWith('sk-')) {
+    inp.style.borderColor = 'var(--green)';
+    if (icon) icon.textContent = '✅';
+    if (err)  err.classList.remove('show');
+  } else if (val.length > 4) {
+    inp.style.borderColor = 'var(--red)';
+    if (icon) icon.textContent = '❌';
+    if (!silent && err) err.classList.add('show');
+  } else {
+    inp.style.borderColor = 'var(--bdr)';
+    if (icon) icon.textContent = val ? '❌' : '⬜';
+  }
+  updateChipClaude();
+}
+
+function updateChipClaude() {
+  const chip = document.getElementById('chip-claude');
+  const lbl  = document.getElementById('chip-claude-lbl');
+  if (!chip) return;
+  // Ler diretamente do campo OU do localStorage
+  const keyEl = document.getElementById('pk-key');
+  const val = keyEl ? keyEl.value.trim() : CFG.key;
+  if (val.startsWith('sk-')) {
+    chip.className = 'api-chip ok';
+    if (lbl) lbl.textContent = '— Conectado';
+  } else {
+    chip.className = 'api-chip setup';
+    if (lbl) lbl.textContent = '— Configurar';
+  }
+}
+
+// ═══════════════════════════════════════
+//  ML AUTH
+// ═══════════════════════════════════════
+async function checkAuth() {
+  try {
+    const r = await fetch(W + '/auth/status?tenant_id=' + TID).then(r => r.json());
+    updateChipML(r.connected && !r.is_expired, r.profile?.nickname);
+  } catch(e) { updateChipML(false); }
+}
+function updateChipML(ok, nick) {
+  const chip = document.getElementById('chip-ml');
+  const lbl  = document.getElementById('chip-ml-lbl');
+  if (ok) {
+    chip.className = 'api-chip ok';
+    if (lbl) lbl.textContent = '— ' + (nick || 'Conectado');
+  } else {
+    chip.className = 'api-chip off';
+    if (lbl) lbl.textContent = '— Desconectado';
+  }
+}
+async function toggleML() {
+  const chip = document.getElementById('chip-ml');
+  if (chip.classList.contains('ok')) {
+    if (!confirm('Desconectar do ML?')) return;
+    await fetch(W + '/auth/revoke?tenant_id=' + TID, {method:'POST'});
+    updateChipML(false);
+  } else {
+    window.location.href = W + '/auth/login?tenant_id=' + TID;
+  }
+}
+
+// ═══════════════════════════════════════
+//  MODAL
+// ═══════════════════════════════════════
+function openModal(tab) {
+  // Preencher modal com valores atuais
+  const mo_key = document.getElementById('mo-key');
+  const mo_meta= document.getElementById('mo-meta');
+  const mo_ctx = document.getElementById('mo-ctx');
+  if (mo_key)  mo_key.value  = localStorage.getItem('r-key')  || '';
+  if (mo_meta) mo_meta.value = localStorage.getItem('r-meta') || '80000';
+  if (mo_ctx)  mo_ctx.value  = localStorage.getItem('r-ctx')  || '';
+  // Stats
+  const tokIn  = parseInt(localStorage.getItem('r-tok-in')  || 0);
+  const tokOut = parseInt(localStorage.getItem('r-tok-out') || 0);
+  const n      = parseInt(localStorage.getItem('r-searches-n') || 0);
+  setEl('mo-stat-n',   n);
+  setEl('mo-stat-tok', (tokIn+tokOut).toLocaleString('pt-BR'));
+  setEl('mo-stat-cost','$'+(tokIn*PRICE_IN+tokOut*PRICE_OUT).toFixed(3));
+  // Doc name
+  const dn = localStorage.getItem('r-doc-name');
+  if (dn) { document.getElementById('doc-name').textContent = '📄 ' + dn; document.getElementById('doc-name').style.display='block'; }
+  document.getElementById('mo').classList.add('open');
+  // Ir para aba correta
+  const tabMap = {'api':0,'train':1,'gloss':2};
+  const i = tabMap[tab] ?? 0;
+  showMoTab(i, document.querySelectorAll('.mo-tab')[i]);
+}
+function closeMo() { document.getElementById('mo').classList.remove('open'); }
+function showMoTab(i, btn) {
+  document.querySelectorAll('.mo-tab').forEach(b => b.classList.remove('on'));
+  document.querySelectorAll('.mo-pane').forEach(p => p.classList.remove('on'));
+  if (btn) btn.classList.add('on');
+  const pane = document.getElementById('mp' + i);
+  if (pane) pane.classList.add('on');
+}
+function doSaveMo() {
+  const mo_key = document.getElementById('mo-key');
+  const mo_meta= document.getElementById('mo-meta');
+  const mo_ctx = document.getElementById('mo-ctx');
+  if (mo_key  && mo_key.value.trim())  { localStorage.setItem('r-key', mo_key.value.trim()); document.getElementById('pk-key').value = mo_key.value.trim(); }
+  if (mo_meta && mo_meta.value)        localStorage.setItem('r-meta', mo_meta.value);
+  if (mo_ctx  && mo_ctx.value !== undefined) localStorage.setItem('r-ctx', mo_ctx.value.trim());
+  updateChipClaude();
+  refreshPanelStats();
+  checkParams();
+  closeMo();
+  toast('✅ Salvo', 'ok', 2000);
+}
+
+// ═══════════════════════════════════════
+//  PHOTO & DOCUMENT
+// ═══════════════════════════════════════
+function handlePhoto(inp) {
+  const f = inp.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = e => {
+    PHOTO_B64 = e.target.result;
+    document.getElementById('up-preview').src   = PHOTO_B64;
+    document.getElementById('up-preview').style.display = 'block';
+    document.getElementById('up-empty').style.display   = 'none';
+    document.getElementById('upz').classList.add('has');
+  };
+  r.readAsDataURL(f);
+}
+async function handleDoc(inp) {
+  const f = inp.files[0]; if (!f) return;
+  try {
+    const text = await f.text();
+    localStorage.setItem('r-doc', text.slice(0, 8000));
+    localStorage.setItem('r-doc-name', f.name);
+    const dn = document.getElementById('doc-name');
+    if (dn) { dn.textContent = '📄 ' + f.name + ' (' + Math.round(text.length/1000) + 'k chars)'; dn.style.display='block'; }
+    toast('📄 Documento carregado: ' + f.name, 'ok', 3000);
+  } catch(e) { toast('Erro ao ler documento: ' + e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════
+//  FORM HELPERS
+// ═══════════════════════════════════════
+function fill(p, c) {
+  document.getElementById('f-produto').value = p;
+  document.getElementById('f-custo').value   = c;
+}
+function mkStyle() {
+  ['ml','sh','az','gg','us'].forEach(id => {
+    const cb  = document.getElementById('mk-' + id);
+    const lbl = document.getElementById('mki-' + id);
+    if (cb && lbl) { cb.checked ? lbl.classList.add('checked') : lbl.classList.remove('checked'); }
+  });
+}
+function onFieldInput(inp, errId) {
+  inp.classList.remove('err');
+  inp.classList.toggle('ok', !!inp.value);
+  const e = document.getElementById(errId);
+  if (e) e.style.display = 'none';
+}
+function markErr(inpId, errId) {
+  const inp = document.getElementById(inpId);
+  const err = document.getElementById(errId);
+  if (inp) { inp.classList.add('err'); inp.classList.remove('ok'); }
+  if (err) err.style.display = 'block';
+}
+
+// ═══════════════════════════════════════
+//  STATES
+// ═══════════════════════════════════════
+function setLS(state) { // left state
+  document.getElementById('search-form').style.display  = state === 'form' ? '' : 'none';
+  document.getElementById('loading-form').style.display = state === 'load' ? '' : 'none';
+}
+function setRS(state) { // right state
+  document.getElementById('rp-empty-wrap').style.display = state === 'empty' ? '' : 'none';
+  const resWrap = document.getElementById('rp-result-wrap');
+  resWrap.style.display = state === 'result' ? 'flex' : 'none';
+  document.getElementById('rp-nd-wrap').style.display = state === 'nd' ? '' : 'none';
+}
+function doCancel() {
+  const spin = document.getElementById('ld-spin');
+  const msg  = document.getElementById('ld-msg');
+  const banner = document.getElementById('err-banner');
+  if (spin) spin.style.display = '';
+  if (msg)  msg.style.display  = '';
+  if (banner) banner.classList.remove('show');
+  setLS('form'); setRS('empty');
+  SEARCH_ID = null; LAST_D = null;
+}
+function showTab(i, btn) {
+  document.querySelectorAll('.tb').forEach(b => b.classList.remove('on'));
+  document.querySelectorAll('.tp').forEach(p => p.classList.remove('on'));
+  if (btn) btn.classList.add('on');
+  const tp = document.getElementById('tp' + i);
+  if (tp) tp.classList.add('on');
+}
+function showError(title, body) {
+  const spin = document.getElementById('ld-spin');
+  const msg  = document.getElementById('ld-msg');
+  if (spin) spin.style.display = 'none';
+  if (msg)  msg.style.display  = 'none';
+  document.getElementById('err-title').textContent = '❌ ' + title;
+  document.getElementById('err-body').textContent  = body;
+  document.getElementById('err-banner').classList.add('show');
+}
+function setEl(id, val) { const e = document.getElementById(id); if (e) e.textContent = val; }
+
+// ═══════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════
+function toast(msg, type, dur) {
+  const el = document.createElement('div');
+  el.className = 'toast ' + (type||'error');
+  el.innerHTML = '<span>' + msg + '</span><span class="toast-x" onclick="this.parentNode.remove()">✕</span>';
+  document.body.appendChild(el);
+  setTimeout(() => { if (el.parentNode) el.remove(); }, dur||5000);
+}
+
+// ═══════════════════════════════════════
+//  FINANCEIRO
+// ═══════════════════════════════════════
+function calcFin(preco, custo) {
+  const p = parseFloat(preco)||0, c = parseFloat(custo)||0;
+  const lC = p - p*CFG.tc - CFG.tf - c;
+  const lP = p - p*CFG.tp - CFG.tf - c;
+  return { preco:p, custo:c, lucroC:lC, lucroP:lP,
+    margemC: p>0 ? lC/p*100 : 0,
+    margemP: p>0 ? lP/p*100 : 0,
+    roi:     c>0 ? lC/c*100 : 0,
+    breakeven: lC>0 ? Math.ceil(c*5/lC) : 999,
+    inv12: c*12 };
+}
+
+// ═══════════════════════════════════════
+//  PROMPT
+// ═══════════════════════════════════════
+function buildPrompt(produto, custo, sites, mkSH, mkAZ, mkGG, mkUS) {
+  const ctx = (CFG.ctx + '\n\n' + CFG.doc).trim();
+  return `INSTRUÇÃO CRÍTICA: Use o web_search AGORA para navegar nos sites abaixo e coletar dados REAIS. Faça múltiplas buscas. NÃO diga que não tem acesso — você tem ferramentas de busca.
+
+[MercadoX] produto="${produto}" custo=R$${parseFloat(custo).toFixed(2)}
+${ctx ? '\nCONTEXTO DO VENDEDOR:\n' + ctx.slice(0,1500) + '\n' : ''}
+SITES: ${sites.join(', ')}
+Para cada site, busque: preços, volume de vendas, avaliações, vendedores principais.
+Taxa ML clássico: ${(CFG.tc*100).toFixed(1)}% + R$${CFG.tf} fixo | Margem mínima: ${CFG.mm}%
+${mkSH ? 'Shopee: taxa ~20%.' : ''} ${mkAZ ? 'Amazon BR: taxa ~15%.' : ''} ${mkGG ? 'Google: preços, tendências, fornecedores.' : ''} ${mkUS ? 'Amazon US: preços USD, fornecedores para importação.' : ''}
+
+Preencha todos os campos com dados reais. Use true para c1_ok se encontrou qualquer produto no mercado.
+Retorne APENAS JSON válido sem markdown:
+{
+  "produto":"${produto}","c1_ok":true,"preco_medio":0,"preco_min":0,"preco_max":0,
+  "p25":0,"p75":0,"vendas_mes":0,"velocidade_dia":0,"anuncios_ativos":0,"score_geral":0,
+  "c1_anuncios":[{"titulo":"","preco":0,"rating":0,"tempo":"","vendas90d":0,"link":""}],
+  "top8":[{"num":1,"titulo":"","preco":0,"rating":0,"total_vendas":0,"vpd":0,"link":""}],
+  "forcas":["","",""],"alertas":["",""],
+  "scores":{"demanda":0,"concorrencia":0,"margem":0,"tendencia":0,"logistica":0,"escala":0},
+  "trends_24m":[
+    {"m":"Jan/24","v":0},{"m":"Fev/24","v":0},{"m":"Mar/24","v":0},{"m":"Abr/24","v":0},
+    {"m":"Mai/24","v":0},{"m":"Jun/24","v":0},{"m":"Jul/24","v":0},{"m":"Ago/24","v":0},
+    {"m":"Set/24","v":0},{"m":"Out/24","v":0},{"m":"Nov/24","v":0},{"m":"Dez/24","v":0},
+    {"m":"Jan/25","v":0},{"m":"Fev/25","v":0},{"m":"Mar/25","v":0},{"m":"Abr/25","v":0},
+    {"m":"Mai/25","v":0},{"m":"Jun/25","v":0},{"m":"Jul/25","v":0},{"m":"Ago/25","v":0},
+    {"m":"Set/25","v":0},{"m":"Out/25","v":0},{"m":"Nov/25","v":0},{"m":"Dez/25","v":0}
+  ],
+  "tendencia":"Estável","tendencia_interp":"",
+  "regioes":[{"estado":"São Paulo","pct":0,"nivel":"Alta"},{"estado":"Paraná","pct":0,"nivel":"Alta"},{"estado":"Minas Gerais","pct":0,"nivel":"Média"},{"estado":"Rio Grande do Sul","pct":0,"nivel":"Média"},{"estado":"Rio de Janeiro","pct":0,"nivel":"Baixa"},{"estado":"Santa Catarina","pct":0,"nivel":"Baixa"}],
+  "categorias":[{"nome":"","count":0}],
+  "bundles":[{"nome":"","custo_est":0,"preco_sug":0,"margem_est":0}],
+  "comparativo":[{"marketplace":"","preco_medio":0,"vantagem":""}],
+  "fornecedor_us":{"disponivel":false,"preco_usd":0,"preco_brl_est":0,"observacao":""},
+  "melhor_canal":"","proximo_passo":"TESTAR","proximo_passo_motivo":""
+}`;
+}
+
+// ═══════════════════════════════════════
+//  JSON REPAIR
+// ═══════════════════════════════════════
+function extractJSON(txt) {
+  const s = txt.indexOf('{'); if (s < 0) return null;
+  const e = txt.lastIndexOf('}') + 1; if (e <= s) return null;
+  let j = txt.slice(s, e);
+  try { return JSON.parse(j); } catch(e1) {}
+  j = j.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+  try { return JSON.parse(j); } catch(e2) {}
+  for (let i = j.length-1; i > 10; i--) {
+    if (j[i] === '}') { try { return JSON.parse(j.slice(0,i+1)); } catch(e3) {} }
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════
+//  ANALYZE
+// ═══════════════════════════════════════
+async function doAnalyze() {
+  const produto = document.getElementById('f-produto').value.trim();
+  const custo   = parseFloat(document.getElementById('f-custo').value);
+
+  // Validação
+  let firstErr = null;
+  if (!produto) { markErr('f-produto','ie-produto'); firstErr = firstErr || 'f-produto'; }
+  if (!custo || custo <= 0) { markErr('f-custo','ie-custo'); firstErr = firstErr || 'f-custo'; }
+  if (firstErr) {
+    document.getElementById(firstErr).scrollIntoView({behavior:'smooth',block:'center'});
+    document.getElementById(firstErr).focus();
+    toast('⚠️ Preencha os campos destacados em vermelho', 'warn', 4000);
+    return;
+  }
+
+  // Verificar API Key — ler do campo do painel (fonte de verdade)
+  const keyEl = document.getElementById('pk-key');
+  const keyVal = keyEl ? keyEl.value.trim() : CFG.key;
+  if (!keyVal || !keyVal.startsWith('sk-')) {
+    if (keyEl) { keyEl.classList.add('err'); keyEl.style.borderColor = 'var(--red)'; }
+    document.getElementById('key-err-msg').classList.add('show');
+    // Abrir painel params se fechado
+    const pb = document.getElementById('params-body');
+    if (!pb.classList.contains('open')) toggleParams();
+    keyEl?.scrollIntoView({behavior:'smooth', block:'center'});
+    keyEl?.focus();
+    toast('⚠️ Configure a Claude API Key no painel Parâmetros', 'warn', 5000);
+    return;
+  }
+
+  const mkML = document.getElementById('mk-ml').checked;
+  const mkSH = document.getElementById('mk-sh').checked;
+  const mkAZ = document.getElementById('mk-az').checked;
+  const mkGG = document.getElementById('mk-gg').checked;
+  const mkUS = document.getElementById('mk-us').checked;
+  if (!mkML&&!mkSH&&!mkAZ&&!mkGG&&!mkUS) { toast('Selecione ao menos um canal', 'warn'); return; }
+
+  const sites = [mkML&&'mercadolivre.com.br', mkSH&&'shopee.com.br', mkAZ&&'amazon.com.br',
+                 mkGG&&'google.com.br', mkUS&&'amazon.com'].filter(Boolean);
+  const numSites = sites.length;
+  const maxTok   = numSites <= 1 ? 4000 : numSites <= 3 ? 6000 : 8000;
+
+  setLS('load');
+  setRS('empty');
+  SEARCH_ID = null;
+  document.getElementById('ld-msg').textContent =
+    'Pesquisando "' + produto + '" em ' + sites.join(', ') + '…';
+
+  // 1. Foto → Vision
+  let prodFinal = produto;
+  if (PHOTO_B64) {
+    document.getElementById('ld-msg').textContent = 'Identificando produto pela foto…';
+    try {
+      const b64  = PHOTO_B64.split(',')[1];
+      const mime = PHOTO_B64.split(';')[0].split(':')[1];
+      const r = await fetch(ANT, {
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-api-key':keyVal,
+          'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body: JSON.stringify({model:MDL,max_tokens:60,messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:mime,data:b64}},
+          {type:'text',text:'Nome genérico deste produto para busca no ML Brasil. 3-5 palavras, sem marca. Apenas o nome.'}
+        ]}]})
+      });
+      const d = await r.json();
+      const nome = d.content?.find(b=>b.type==='text')?.text?.trim();
+      if (nome) prodFinal = nome;
+    } catch(e) {}
+  }
+
+  // 2. Web search
+  document.getElementById('ld-msg').textContent =
+    'Pesquisando "' + prodFinal + '" em ' + sites.join(', ') + '…';
+
+  let data, tokIn = 0, tokOut = 0;
+  try {
+    const r = await fetch(ANT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': keyVal,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+        'anthropic-beta': 'web-search-2025-03-05'
+      },
+      body: JSON.stringify({
+        model: MDL, max_tokens: maxTok,
+        tools: [{type:'web_search_20250305',name:'web_search'}],
+        messages: [{role:'user',content:buildPrompt(prodFinal,custo,sites,mkSH,mkAZ,mkGG,mkUS)}]
+      })
+    });
+
+    if (!r.ok) {
+      const e = await r.text();
+      let msg = 'Anthropic ' + r.status;
+      try { const ej = JSON.parse(e); msg = ej.error?.message || msg; } catch(ex){}
+      const title = msg.includes('credit') ? 'Saldo insuficiente na Anthropic' :
+                    msg.includes('401')    ? 'API Key inválida' :
+                    msg.includes('429')    ? 'Limite atingido — aguarde alguns segundos' : 'Erro na API';
+      showError(title, msg);
+      return;
+    }
+
+    const resp = await r.json();
+    tokIn  = resp.usage?.input_tokens  || 0;
+    tokOut = resp.usage?.output_tokens || 0;
+
+    // Track tokens
+    localStorage.setItem('r-tok-in',  (parseInt(localStorage.getItem('r-tok-in')||0)  + tokIn).toString());
+    localStorage.setItem('r-tok-out', (parseInt(localStorage.getItem('r-tok-out')||0) + tokOut).toString());
+    localStorage.setItem('r-searches-n', (parseInt(localStorage.getItem('r-searches-n')||0) + 1).toString());
+    refreshPanelStats(); refreshNavStats();
+
+    const textBlock = resp.content?.find(b => b.type === 'text');
+    if (!textBlock?.text) throw new Error('Sem resposta da IA. Verifique a API Key e o saldo.');
+
+    data = extractJSON(textBlock.text);
+    if (!data) throw new Error('Não foi possível extrair os dados. Tente novamente.');
+
+  } catch(e) {
+    console.error(e);
+    showError('Erro na análise', e.message);
+    return;
+  }
+
+  // 3. Sem demanda
+  if (!data.c1_ok) {
+    document.getElementById('nd-sub').textContent =
+      'Não encontramos ' + CFG.an + ' anúncios com ' + CFG.vm + '+ vendas para "' + prodFinal + '".';
+    document.getElementById('nd-stats').innerHTML = [
+      {l:'Preço médio',v:'R$'+(data.preco_medio||0).toFixed(0)},
+      {l:'Anúncios',  v:(data.anuncios_ativos||0).toLocaleString('pt-BR')},
+      {l:'Custo IA',  v:'$'+(tokIn*PRICE_IN+tokOut*PRICE_OUT).toFixed(4)},
+    ].map(s=>`<div class="kpi"><div class="kpi-l">${s.l}</div><div class="kpi-v" style="font-size:15px">${s.v}</div></div>`).join('');
+    setLS('form'); setRS('nd');
+    saveSearch(prodFinal, custo, data, calcFin(data.preco_medio||0, custo), 'DESCARTADO', tokIn, tokOut);
+    return;
+  }
+
+  // 4. Calcular e renderizar
+  const fin = calcFin(data.preco_medio, custo);
+  LAST_D = { produto:prodFinal, custo, data, fin, ts:new Date().toLocaleString('pt-BR'), tokIn, tokOut };
+  const verd = fin.margemC >= CFG.mm ? 'APROVADO' : 'ALTO POTENCIAL';
+  saveSearch(prodFinal, custo, data, fin, verd, tokIn, tokOut).then(id => { SEARCH_ID = id; });
+  renderReport(LAST_D);
+  setLS('form'); setRS('result');
+}
+
+async function saveSearch(produto, custo, data, fin, verd, tokIn, tokOut) {
+  try {
+    const r = await fetch(W+'/db/search-save', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Tenant-ID':TID},
+      body:JSON.stringify({keyword:produto,cost:custo,avg_price:data.preco_medio||0,
+        margin_c:fin.margemC,verdict:verd,score:data.score_geral||0,
+        v1_ok:!!data.c1_ok,v2_ok:fin.margemC>=CFG.mm,
+        total_ads:data.anuncios_ativos||0,est_monthly:data.vendas_mes||0,
+        tokens_in:tokIn,tokens_out:tokOut,cost_usd:tokIn*PRICE_IN+tokOut*PRICE_OUT})
+    });
+    const d = await r.json();
+    return d.id||null;
+  } catch(e){ return null; }
+}
+
+// ═══════════════════════════════════════
+//  CLASSIFY
+// ═══════════════════════════════════════
+async function doClassify(status) {
+  document.querySelectorAll('.clf-btn').forEach(b=>b.classList.remove('on'));
+  const map={'aprovado':'ap','standby':'sb','reprovado':'rp'};
+  const btn=document.querySelector('.clf-btn.'+map[status]);
+  if(btn)btn.classList.add('on');
+  if (!SEARCH_ID) return;
+  try {
+    await fetch(W+'/db/search-status',{method:'POST',
+      headers:{'Content-Type':'application/json','X-Tenant-ID':TID},
+      body:JSON.stringify({id:SEARCH_ID,status})});
+    if(status==='aprovado') toast('✅ Adicionado à fila de compras!','ok',3000);
+    else if(status==='reprovado') toast('❌ Marcado como reprovado','error',2000);
+    else toast('⏸ Em standby','warn',2000);
+  } catch(e){}
+}
+
+// ═══════════════════════════════════════
+//  RENDER REPORT
+// ═══════════════════════════════════════
+function renderReport(D) {
+  const {produto:p, custo, data:d, fin, ts, tokIn, tokOut} = D;
+  const aprovado = d.c1_ok && fin.margemC >= CFG.mm;
+  const fmt  = n => parseFloat(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const fmtP = n => parseFloat(n||0).toFixed(1);
+  const fmtN = n => parseInt(n||0).toLocaleString('pt-BR');
+  const cost = (tokIn*PRICE_IN+tokOut*PRICE_OUT).toFixed(4);
+
+  setEl('rpt-title','MercadoX — '+p);
+  setEl('rpt-meta','Custo: R$'+fmt(custo)+' · '+ts+' · $'+cost);
+  showTab(0, document.querySelector('.tb'));
+
+  // ── TAB 0: ANÁLISE ──────────────────
+  const cands=(d.c1_anuncios||[]).filter(a=>a.titulo||a.title);
+  let t0=`<div class="box ${d.c1_ok?'box-g':'box-r'}">
+    <div class="box-title">${d.c1_ok?'✅ C1 — Demanda comprovada':'❌ C1 — Demanda insuficiente'}</div>
+    <div class="box-body">${cands.length} anúncio(s) com ${fmtN(CFG.vm)}+ vendas.</div></div>`;
+
+  cands.slice(0,3).forEach(a=>{
+    const link=a.link||'#';
+    t0+=`<div style="background:#F9FAFB;border:1px solid var(--bdr);border-radius:7px;padding:9px 12px;margin-bottom:6px">
+      <div style="font-size:12px;font-weight:600;margin-bottom:5px">${a.titulo||a.title||''}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">
+        <span class="pill pill-x">R$${fmt(a.preco||a.price||0)}</span>
+        ${a.rating?`<span class="pill pill-g">${a.rating}★</span>`:''}
+        <span class="pill pill-g">${fmtN(a.vendas90d||0)} vendas/90d</span>
+        ${link!='#'?`<a class="pill pill-b" href="${link}" target="_blank" style="text-decoration:none">↗ Ver</a>`:''}
+      </div></div>`;
+  });
+
+  const c2ok=fin.margemC>=CFG.mm;
+  const pct=Math.min(Math.max(fin.margemC,0),100).toFixed(1);
+  t0+=`<div class="box ${c2ok?'box-g':'box-r'}" style="margin-top:4px">
+    <div class="box-title">${c2ok?'✅':'❌'} C2 — Margem ${fmtP(fin.margemC)}% ${c2ok?'≥':'<'} ${CFG.mm}%</div>
+    <div class="box-body" style="font-size:11px">R$${fmt(fin.preco)} − ${fmtP(CFG.tc*100)}% − R$${fmt(CFG.tf)} − R$${fmt(custo)} = <strong>R$${fmt(fin.lucroC)}</strong></div>
+    <div class="prog"><div class="prog-fill ${c2ok?'green':'orange'}" style="width:${pct}%"></div></div>
+    <div style="text-align:right;font-size:11px;margin-top:1px">${fmtP(fin.margemC)}% / mín ${CFG.mm}%</div></div>`;
+
+  const vcls=aprovado?'box-g':d.c1_ok?'box-o':'box-r';
+  const vtxt=aprovado?'🎉 APROVADO':d.c1_ok?'⚠️ ALTO POTENCIAL':'❌ DESCARTADO';
+  t0+=`<div class="box ${vcls}" style="margin-top:4px">
+    <div class="box-title" style="font-size:14px">${vtxt}</div>
+    <div class="box-body">${d.proximo_passo_motivo||''}</div></div>`;
+
+  t0+=`<div class="sec">Métricas</div>
+  <div class="kpis">
+    <div class="kpi"><div class="kpi-l">Preço médio</div><div class="kpi-v blue">R$${fmt(d.preco_medio||0)}</div><div class="kpi-s">P25–P75: R$${fmt(d.p25||0)}–${fmt(d.p75||0)}</div></div>
+    <div class="kpi"><div class="kpi-l">Vendas/mês</div><div class="kpi-v">${fmtN(d.vendas_mes||0)}</div><div class="kpi-s">~${d.velocidade_dia||0}/dia</div></div>
+    <div class="kpi"><div class="kpi-l">Anúncios</div><div class="kpi-v">${fmtN(d.anuncios_ativos||0)}</div></div>
+  </div>`;
+
+  const sc=d.scores||{};
+  const scArr=[['Demanda',sc.demanda||0,'blue'],['Concorrência',sc.concorrencia||0,'orange'],
+               ['Margem',sc.margem||0,'green'],['Tendência',sc.tendencia||0,'blue'],
+               ['Logística',sc.logistica||0,'green'],['Escala',sc.escala||0,'orange']];
+  t0+=`<div class="sec">Scores</div><div class="scores-grid">`;
+  scArr.forEach(([l,v,c])=>{
+    t0+=`<div class="score-card"><div class="score-dim">${l}</div>
+    <div class="score-val" style="color:var(--${c})">${v}</div>
+    <div class="prog" style="margin-top:3px"><div class="prog-fill ${c}" style="width:${v}%"></div></div></div>`;
+  });
+  t0+=`</div>`;
+
+  const top8=(d.top8||[]).slice(0,8);
+  if(top8.length){
+    t0+=`<div class="sec">Top anúncios</div><div style="overflow-x:auto"><table class="tbl">
+    <thead><tr><th>#</th><th>Título</th><th>Preço</th><th>Vendas</th><th>V/dia</th><th>Link</th></tr></thead><tbody>`;
+    top8.forEach(a=>{
+      const vpd=a.vpd||0,link=a.link||'#';
+      const vc=vpd>=15?'pill-g':vpd>=8?'pill-o':'pill-x';
+      t0+=`<tr>
+        <td><strong>${a.num||''}</strong></td>
+        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.titulo||a.title||''}</td>
+        <td>R$${fmt(a.preco||a.price||0)}</td>
+        <td>${fmtN(a.total_vendas||a.sold_qty||0)}</td>
+        <td><span class="pill ${vc}">${vpd}/d</span></td>
+        <td>${link!='#'?`<a class="pill pill-b" href="${link}" target="_blank" style="text-decoration:none">↗</a>`:'—'}</td>
+      </tr>`;
+    });
+    t0+=`</tbody></table></div><p class="note">* V/dia estimado</p>`;
+  }
+
+  if((d.forcas||[]).length)
+    t0+=`<div class="box box-g" style="margin-top:10px"><div class="box-title">Pontos fortes</div><div class="box-body">${d.forcas.map(f=>'✅ '+f).join('<br>')}</div></div>`;
+  if((d.alertas||[]).length)
+    t0+=`<div class="box box-o"><div class="box-title">Alertas</div><div class="box-body">${d.alertas.map(a=>'⚠️ '+a).join('<br>')}</div></div>`;
+  if(d.fornecedor_us?.disponivel)
+    t0+=`<div class="box box-b"><div class="box-title">🇺🇸 Amazon US</div><div class="box-body">$${d.fornecedor_us.preco_usd||0} USD (~R$${fmt(d.fornecedor_us.preco_brl_est||0)})<br>${d.fornecedor_us.observacao||''}</div></div>`;
+
+  document.getElementById('tp0').innerHTML=t0;
+
+  // ── TAB 1: FINANCEIRO ──────────────
+  document.getElementById('tp1').innerHTML=`
+  <div class="kpis"><div class="kpi"><div class="kpi-l">M.Clássico</div><div class="kpi-v ${fin.margemC>=CFG.mm?'green':'red'}">${fmtP(fin.margemC)}%</div></div>
+  <div class="kpi"><div class="kpi-l">M.Premium</div><div class="kpi-v ${fin.margemP>=CFG.mm?'green':'orange'}">${fmtP(fin.margemP)}%</div></div>
+  <div class="kpi"><div class="kpi-l">ROI</div><div class="kpi-v blue">${fin.roi.toFixed(0)}%</div></div></div>
+  <div class="sec">Demonstrativo</div>
+  <table class="tbl"><tbody>
+    <tr><td colspan="2" style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--muted);padding-top:10px">RECEITA</td></tr>
+    <tr><td>Preço médio ML</td><td style="text-align:right;font-weight:600">R$${fmt(fin.preco)}</td></tr>
+    <tr><td colspan="2" style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--muted);padding-top:10px">DESCONTOS</td></tr>
+    <tr><td>Taxa clássico (${fmtP(CFG.tc*100)}%)</td><td style="text-align:right;color:var(--red)">−R$${fmt(fin.preco*CFG.tc)}</td></tr>
+    <tr><td>Taxa fixa ML</td><td style="text-align:right;color:var(--red)">−R$${fmt(CFG.tf)}</td></tr>
+    <tr><td>Custo produto</td><td style="text-align:right;color:var(--red)">−R$${fmt(custo)}</td></tr>
+    <tr style="background:#F0FFF4"><td style="font-weight:700;color:var(--green)">Lucro clássico</td><td style="text-align:right;font-size:15px;font-weight:800;color:var(--green)">R$${fmt(fin.lucroC)}</td></tr>
+    <tr><td>ROI</td><td style="text-align:right">${fin.roi.toFixed(0)}%</td></tr>
+    <tr><td>Breakeven</td><td style="text-align:right">${fin.breakeven} un/mês</td></tr>
+    <tr><td>Investimento (12 un)</td><td style="text-align:right">R$${fmt(fin.inv12)}</td></tr>
+    <tr><td colspan="2" style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--muted);padding-top:10px">CUSTO IA</td></tr>
+    <tr><td>Esta análise</td><td style="text-align:right">$${cost}</td></tr>
+  </tbody></table>`;
+
+  // ── TAB 2: TRENDS ──────────────────
+  const tr=d.trends_24m||[];
+  let t2='';
+  if(tr.length===24){
+    const vals=tr.map(t=>t.v),maxV=Math.max(...vals)||1;
+    const pk=tr[vals.indexOf(Math.max(...vals))];
+    t2+=`<div class="kpis" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
+      <div class="kpi"><div class="kpi-l">Tendência</div><div class="kpi-v" style="font-size:13px">${d.tendencia||'Estável'}</div></div>
+      <div class="kpi"><div class="kpi-l">Pico</div><div class="kpi-v green">${pk?.m||'—'}</div></div></div>
+    <div class="sec">Índice — 24 meses</div><div class="tchart">`;
+    tr.forEach(t=>{
+      const h=Math.max(Math.round((t.v/maxV)*100),3);
+      const cor=t.v===Math.max(...vals)?'#1D4ED8':t.v===Math.min(...vals)?'#EF9F27':'#B5D4F4';
+      t2+=`<div class="tbar-w"><div class="tbar" style="height:${h}%;background:${cor}"></div><div class="tlbl">${t.m.slice(0,3)}</div></div>`;
+    });
+    t2+=`</div>`;
+    if(d.tendencia_interp) t2+=`<div class="box box-b"><div class="box-body">${d.tendencia_interp}</div></div>`;
+  } else { t2='<div class="box box-b"><div class="box-body">Dados de tendência não disponíveis.</div></div>'; }
+  document.getElementById('tp2').innerHTML=t2;
+
+  // ── TAB 3: REGIÕES ─────────────────
+  const regs=d.regioes||[];
+  let t3='';
+  if(regs.length){
+    const maxP=Math.max(...regs.map(r=>r.pct))||1;
+    regs.forEach(r=>{
+      const w=Math.round((r.pct/maxP)*100);
+      const cls=r.nivel==='Alta'?'pill-g':r.nivel==='Média'?'pill-o':'pill-x';
+      t3+=`<div class="reg-row">
+        <div class="reg-top"><span>${r.estado}</span><div style="display:flex;align-items:center;gap:5px"><span class="pill ${cls}">${r.nivel||'—'}</span><span style="font-size:11px;color:var(--muted)">${r.pct}%</span></div></div>
+        <div class="reg-track"><div class="reg-fill" style="width:${w}%"></div></div></div>`;
+    });
+  } else { t3='<div class="box box-b"><div class="box-body">Dados regionais não disponíveis.</div></div>'; }
+  document.getElementById('tp3').innerHTML=t3;
+
+  // ── TAB 4: CATEGORIAS ──────────────
+  const cats=(d.categorias||[]),bundles=(d.bundles||[]),comp=(d.comparativo||[]).filter(c=>(c.preco_medio||0)>0);
+  let t4='';
+  if(cats.length){
+    t4+=`<div class="sec">Categorias</div>`;
+    cats.forEach(c=>{t4+=`<div style="background:#F9FAFB;border:1px solid var(--bdr);border-radius:7px;padding:8px 11px;margin-bottom:5px;display:flex;justify-content:space-between"><span style="font-weight:600">${c.nome}</span><span class="pill pill-g">${fmtN(c.count||0)}</span></div>`;});
+  }
+  if(bundles.length){
+    t4+=`<div class="sec">Sugestões de bundle</div>`;
+    bundles.forEach(b=>{t4+=`<div class="bundle-c"><div><div style="font-weight:600">${b.nome}</div><div style="font-size:11px;color:var(--muted)">Custo ~R$${fmt(b.custo_est||0)} → R$${fmt(b.preco_sug||0)}</div></div><div style="font-weight:800;color:var(--green)">${b.margem_est||0}%</div></div>`;});
+  }
+  if(comp.length>1){
+    const icons={'Mercado Livre':'🛒','Shopee':'🧡','Amazon BR':'📦','Amazon EUA':'🇺🇸','Google':'🔍'};
+    t4+=`<div class="sec">Comparativo de canais</div>`;
+    comp.forEach(c=>{t4+=`<div class="bundle-c"><div style="font-size:18px">${icons[c.marketplace]||'🏪'}</div><div style="flex:1"><div style="font-weight:600">${c.marketplace}</div><div style="font-size:11px;color:var(--muted)">${c.vantagem||''}</div></div><div style="font-weight:800;color:var(--blue)">R$${fmt(c.preco_medio||0)}</div></div>`;});
+    if(d.melhor_canal) t4+=`<div class="box box-g"><div class="box-title">🏆 Melhor: ${d.melhor_canal}</div></div>`;
+  }
+  if(!t4) t4='<div class="box box-b"><div class="box-body">Dados de categorias não disponíveis.</div></div>';
+  document.getElementById('tp4').innerHTML=t4;
+
+  // Tabs 5 e 6 carregados sob demanda
+  document.getElementById('tp5').innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">Clique na aba para carregar o histórico</div>';
+  document.getElementById('tp6').innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">Clique na aba para carregar a fila</div>';
+}
+
+// ═══════════════════════════════════════
+//  HISTÓRICO
+// ═══════════════════════════════════════
+function buildDonut(ap, sb, rp, pe, total) {
+  const r=36,cx=44,cy=44,st=14,circ=2*Math.PI*r;
+  const segs=[{v:ap,c:'#00A650'},{v:sb,c:'#EF9F27'},{v:rp,c:'#F04E37'},{v:pe,c:'#9CA3AF'}];
+  let off=0,paths='';
+  segs.forEach(s=>{
+    const len=(s.v/total)*circ;
+    if(len>0){paths+=`<circle r="${r}" cx="${cx}" cy="${cy}" fill="none" stroke="${s.c}" stroke-width="${st}" stroke-dasharray="${len} ${circ-len}" stroke-dashoffset="${-off}" transform="rotate(-90 ${cx} ${cy})"/>`;off+=len;}
+  });
+  return `<svg width="88" height="88" viewBox="0 0 88 88">
+    <circle r="${r}" cx="${cx}" cy="${cy}" fill="none" stroke="#E5E7EB" stroke-width="${st}"/>
+    ${paths}
+    <text x="${cx}" y="${cy+1}" text-anchor="middle" dominant-baseline="middle" font-size="14" font-weight="800" fill="#374151">${total}</text>
+    <text x="${cx}" y="${cy+13}" text-anchor="middle" font-size="8" fill="#9CA3AF">total</text>
+  </svg>`;
+}
+
+async function loadHistory() {
+  const el=document.getElementById('tp5');
+  el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">⏳ Carregando…</div>';
+  try {
+    const d=await fetch(W+'/db/searches?limit=50',{headers:{'X-Tenant-ID':TID}}).then(r=>r.json());
+    const list=d.searches||[];
+    let ap=0,sb=0,rp=0,pe=0;
+    list.forEach(s=>{ if(s.status==='aprovado')ap++; else if(s.status==='standby')sb++; else if(s.status==='reprovado')rp++; else pe++; });
+    const total=list.length||1;
+    let h=`<div class="sec">Distribuição (${list.length} pesquisas)</div>
+    <div class="chart-wrap">
+      ${buildDonut(ap,sb,rp,pe,total)}
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${[['var(--green)','Aprovados',ap],['var(--orange)','Standby',sb],['var(--red)','Reprovados',rp],['var(--muted)','Pendentes',pe]]
+          .map(([c,l,v])=>`<div class="legend-item"><div class="legend-dot" style="background:${c}"></div>${l}<div class="legend-val">${v}</div></div>`).join('')}
+      </div></div>`;
+    if(!list.length){h+='<div class="box box-b"><div class="box-body">Nenhuma pesquisa ainda.</div></div>';}
+    else{
+      h+=`<div class="sec">Histórico</div>`;
+      list.forEach(s=>{
+        const dc={'aprovado':'ap','standby':'sb','reprovado':'rp'}[s.status]||'pe';
+        const pc={'ap':'pill-g','sb':'pill-o','rp':'pill-r','pe':'pill-x'}[dc];
+        const dt=s.created_at?new Date(s.created_at).toLocaleDateString('pt-BR'):'—';
+        h+=`<div class="hist-item" onclick="fillAndGoBack('${s.keyword.replace(/'/g,"\\'")}',${s.cost||0})">
+          <div class="hist-dot ${dc}"></div>
+          <div style="flex:1;font-weight:600;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.keyword}</div>
+          <span class="pill ${pc}" style="flex-shrink:0">${s.verdict||'—'}</span>
+          <div style="font-size:10px;color:var(--muted);white-space:nowrap">${dt}</div>
+        </div>`;
+      });
+    }
+    el.innerHTML=h;
+  } catch(e){ el.innerHTML='<div style="color:var(--red);padding:12px;font-size:12px">Erro ao carregar histórico.</div>'; }
+}
+
+function fillAndGoBack(kw, cost) {
+  document.getElementById('f-produto').value=kw;
+  document.getElementById('f-custo').value=cost;
+  showTab(0, document.querySelector('.tb'));
+}
+
+// ═══════════════════════════════════════
+//  FILA DE COMPRAS
+// ═══════════════════════════════════════
+async function loadQueue() {
+  const el=document.getElementById('tp6');
+  el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">⏳ Carregando…</div>';
+  try {
+    const d=await fetch(W+'/db/searches?limit=50',{headers:{'X-Tenant-ID':TID}}).then(r=>r.json());
+    const queue=(d.searches||[]).filter(s=>s.status==='aprovado');
+    if(!queue.length){
+      el.innerHTML='<div class="box box-b"><div class="box-title">Fila vazia</div><div class="box-body">Classifique uma pesquisa como ✅ Aprovado para adicioná-la aqui.</div></div>';
+      return;
+    }
+    let h=`<div class="sec">✅ Fila de compras (${queue.length})</div>`;
+    queue.forEach((s,i)=>{
+      const dt=s.created_at?new Date(s.created_at).toLocaleDateString('pt-BR'):'';
+      h+=`<div class="queue-item">
+        <div class="q-num">${i+1}</div>
+        <div style="flex:1;min-width:0"><div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.keyword}</div>
+        <div style="font-size:11px;color:var(--muted)">Custo R$${parseFloat(s.cost||0).toFixed(2)} · Margem ${parseFloat(s.margin_c||0).toFixed(1)}% · ${dt}</div></div>
+        <span class="pill pill-g">Aprovado</span>
+      </div>`;
+    });
+    el.innerHTML=h;
+  } catch(e){ el.innerHTML='<div style="color:var(--red);padding:12px;font-size:12px">Erro ao carregar fila.</div>'; }
+}
+</script>
+</body>
+</html>
