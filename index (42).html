@@ -1,0 +1,1608 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Radar ML</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ml:#FFE600;--ml-dark:#E8D200;
+  --blue:#3483FA;--blue-d:#185FA5;
+  --green:#00A650;--green-bg:#EAF3DE;--green-bd:#97C459;
+  --red:#F04E37;--red-bg:#FCEBEB;--red-bd:#F09595;
+  --orange:#EF9F27;--orange-bg:#FAEEDA;--orange-bd:#E8AA36;
+  --gray:#F4F5F7;--border:#E5E7EB;--text:#1C1E24;--muted:#9CA3AF;
+  --shopee:#E52B00;--amazon:#FF9900;--google:#4285F4;--amzus:#232F3E;
+  --radius:10px;--shadow:0 1px 4px rgba(0,0,0,.07);
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+body{font-family:Inter,system-ui,sans-serif;background:var(--gray);color:var(--text);font-size:13px;min-height:100vh}
+
+/* ── NAV ── */
+nav{background:var(--ml);height:48px;display:flex;align-items:center;padding:0 14px;gap:8px;position:sticky;top:0;z-index:200;box-shadow:0 2px 6px rgba(0,0,0,.12);overflow-x:auto}
+.logo{display:flex;align-items:center;gap:6px;flex-shrink:0;margin-right:6px}
+.logo-box{width:24px;height:24px;background:#fff;border-radius:5px;display:flex;align-items:center;justify-content:center}
+.logo svg{width:13px;height:13px}
+.logo-name{font-size:14px;font-weight:900}
+.logo-badge{font-size:8px;font-weight:800;background:var(--blue);color:#fff;padding:1px 5px;border-radius:4px}
+.np{display:flex;gap:1px;background:rgba(0,0,0,.12);border-radius:16px;padding:2px;flex-shrink:0}
+.nb{padding:3px 10px;border:none;border-radius:13px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;color:rgba(0,0,0,.5);background:transparent;white-space:nowrap}
+.nb.on{background:#fff;color:var(--blue);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.nav-r{margin-left:auto;display:flex;align-items:center;gap:6px;flex-shrink:0}
+
+/* API STATUS INDICATORS */
+.api-status{display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:14px;background:rgba(0,0,0,.1);font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap}
+.api-status svg{width:12px;height:12px}
+.api-status.ok{background:rgba(0,166,80,.18);color:#006630}
+.api-status.err{background:rgba(240,78,55,.15);color:#A32D2D}
+.api-status.off{background:rgba(0,0,0,.1);color:rgba(0,0,0,.5)}
+
+/* TOKENS PILL */
+.tok-pill{display:flex;align-items:center;gap:5px;padding:3px 9px;border-radius:14px;background:rgba(0,0,0,.1);font-size:10px;font-weight:700;white-space:nowrap;cursor:pointer}
+.tok-pill:hover{background:rgba(0,0,0,.18)}
+
+.btn-set{background:rgba(0,0,0,.1);border:none;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:13px;border:none}
+.btn-set:hover{background:rgba(0,0,0,.2)}
+
+/* ── LAYOUT ── */
+.app{display:grid;grid-template-columns:370px 1fr;gap:12px;max-width:1300px;margin:0 auto;padding:14px;align-items:start}
+@media(max-width:820px){.app{grid-template-columns:1fr}}
+
+/* ── CARD ── */
+.card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+.card-hdr{background:var(--blue);border-radius:var(--radius) var(--radius) 0 0;padding:13px 16px;display:flex;align-items:center;gap:9px}
+.card-hdr svg{width:15px;height:15px;flex-shrink:0}
+.card-hdr h2{font-size:14px;font-weight:600;color:#fff;margin:0}
+.card-hdr p{font-size:11px;color:rgba(255,255,255,.7);margin:0}
+.card-body{padding:16px}
+
+/* ── INPUT FORM ── */
+.lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);display:block;margin-bottom:4px}
+.inp{width:100%;height:38px;border:1.5px solid var(--border);border-radius:7px;padding:0 11px;font-size:13px;font-family:inherit;outline:none;transition:border .15s,box-shadow .15s}
+.inp:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(52,131,250,.1)}
+.inp::placeholder{color:#D1D5DB}
+.ierr{font-size:11px;color:var(--red);margin-top:3px;display:none}
+.row2{display:grid;grid-template-columns:1fr 130px;gap:10px;margin-bottom:12px}
+
+/* UPLOAD */
+.upz{border:1.5px dashed var(--border);border-radius:8px;padding:14px;text-align:center;cursor:pointer;position:relative;background:#FAFAFA;transition:all .15s;margin-bottom:10px;overflow:hidden}
+.upz:hover{border-color:var(--blue);background:#F0F7FF}
+.upz.has{border-style:solid;border-color:var(--blue);padding:0}
+.upz input{position:absolute;inset:0;opacity:0;cursor:pointer;z-index:2}
+#up-preview{width:100%;max-height:110px;object-fit:cover;display:none}
+.up-badge{display:none;margin-top:6px}
+.up-badge-inner{display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#EBF3FB;color:#185FA5;border-radius:16px;padding:3px 10px;border:1px solid #85B7EB}
+
+/* MARKETPLACES */
+.mk-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:7px}
+.mk-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:12px}
+.mk-item{border:1.5px solid var(--border);border-radius:7px;padding:6px 8px;cursor:pointer;display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;transition:all .15s}
+.mk-item.checked{border-color:var(--blue);background:#EBF3FB;color:var(--blue)}
+.mk-item input{width:12px;height:12px;accent-color:var(--blue)}
+.mk-item.ml.checked{border-color:#CCA800;background:#FFFDE7;color:#856300}
+.mk-item.sh.checked{border-color:var(--shopee);background:#FFF0EE;color:var(--shopee)}
+.mk-item.az.checked{border-color:var(--amazon);background:#FFF8EE;color:#854F00}
+.mk-item.gg.checked{border-color:var(--google);background:#EEF3FF;color:var(--google)}
+.mk-item.us.checked{border-color:var(--amzus);background:#EFF1F3;color:var(--amzus)}
+
+/* CHIPS */
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px}
+.chip{font-size:11px;padding:3px 9px;border-radius:16px;background:var(--gray);border:1px solid var(--border);color:#6B7280;cursor:pointer;font-family:inherit}
+.chip:hover{background:#EBF3FB;border-color:#85B7EB;color:var(--blue)}
+
+/* BTN */
+.btn-primary{width:100%;height:42px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:7px}
+.btn-primary:hover{background:var(--blue-d)}
+.btn-note{font-size:11px;color:var(--muted);text-align:center;margin-top:7px}
+.btn-sm{padding:6px 13px;border:1px solid var(--border);border-radius:7px;font-size:11px;font-weight:600;color:var(--text);background:#fff;cursor:pointer;font-family:inherit}
+.btn-sm:hover{background:var(--gray)}
+.btn-sm.primary{background:var(--blue);color:#fff;border-color:var(--blue)}
+.btn-sm.primary:hover{background:var(--blue-d)}
+.btn-sm.green{background:var(--green);color:#fff;border-color:var(--green)}
+.btn-sm.orange{background:var(--orange);color:#fff;border-color:var(--orange)}
+.btn-sm.red{background:var(--red);color:#fff;border-color:var(--red)}
+
+/* LOADING */
+.ld-wrap{text-align:center;padding:40px 20px}
+.ld-spin{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+.ld-msg{font-size:13px;font-weight:600;color:#374151;margin-bottom:3px}
+.ld-sub{font-size:11px;color:var(--muted)}
+.btn-cancel{margin-top:14px;padding:7px 16px;background:var(--gray);border:1px solid var(--border);border-radius:7px;font-size:11px;font-weight:600;color:#6B7280;cursor:pointer}
+
+/* settings-panel movido para modal */
+.s-section{margin-bottom:16px}
+.s-section-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:9px;padding-bottom:5px;border-bottom:1px solid var(--border)}
+.s-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.s-row.trio{grid-template-columns:1fr 1fr 1fr}
+.s-field{margin-bottom:8px}
+.s-field label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:3px}
+.s-field input,.s-field textarea{width:100%;border:1.5px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;font-family:inherit;outline:none;resize:vertical}
+.s-field input:focus,.s-field textarea:focus{border-color:var(--blue)}
+.s-field textarea{min-height:80px;line-height:1.5}
+.doc-zone{border:1.5px dashed var(--border);border-radius:7px;padding:12px;text-align:center;cursor:pointer;position:relative;background:#FAFAFA;font-size:11px;color:var(--muted)}
+.doc-zone:hover{border-color:var(--blue);background:#F0F7FF}
+.doc-zone input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.doc-tag{display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#EBF3FB;color:#185FA5;border-radius:16px;padding:3px 9px;border:1px solid #85B7EB;margin-top:5px}
+
+/* ── RIGHT PANEL ── */
+.rp-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;min-height:200px}
+.rp-empty{text-align:center;padding:50px 20px}
+.rp-empty-ico{font-size:40px;opacity:.3;margin-bottom:10px}
+.rp-empty-title{font-size:15px;font-weight:700;color:#374151;margin-bottom:4px}
+.rp-empty-sub{font-size:12px;color:var(--muted)}
+
+/* TABS */
+.tabs{display:flex;border-bottom:1px solid var(--border);overflow-x:auto}
+.tab-btn{padding:10px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;color:#6B7280;background:none;border-top:none;border-left:none;border-right:none;font-family:inherit}
+.tab-btn.on{color:var(--blue);border-bottom-color:var(--blue)}
+.tab-pane{display:none;padding:16px;animation:fade .2s}
+.tab-pane.on{display:block}
+
+/* REPORT HEADER */
+.rpt-hdr{background:var(--blue);padding:13px 16px;display:flex;align-items:center;gap:9px}
+.rpt-title{font-size:14px;font-weight:700;color:#fff;flex:1}
+.rpt-meta{font-size:10px;color:rgba(255,255,255,.65)}
+
+/* INLINE COMPONENTS */
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.kpi{background:#F9FAFB;border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+.kpi-l{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:2px}
+.kpi-v{font-size:18px;font-weight:800}
+.kpi-s{font-size:10px;color:var(--muted);margin-top:1px}
+.kpi-v.green{color:var(--green)}.kpi-v.blue{color:var(--blue)}.kpi-v.red{color:var(--red)}.kpi-v.orange{color:var(--orange)}
+
+.box{border-radius:8px;padding:11px 13px;margin-bottom:8px}
+.box-g{background:var(--green-bg);border:1px solid var(--green-bd);color:#3B6D11}
+.box-r{background:var(--red-bg);border:1px solid var(--red-bd);color:#A32D2D}
+.box-o{background:var(--orange-bg);border:1px solid var(--orange-bd);color:#854F0B}
+.box-b{background:#EBF3FB;border:1px solid #85B7EB;color:#185FA5}
+.box-title{font-size:13px;font-weight:700;margin-bottom:3px}
+.box-body{font-size:12px;line-height:1.6}
+.prog{height:8px;background:var(--border);border-radius:8px;overflow:hidden;margin:5px 0 2px}
+.prog-fill{height:100%;border-radius:8px;transition:width .5s}
+.prog-fill.green{background:var(--green)}.prog-fill.blue{background:var(--blue)}.prog-fill.orange{background:var(--orange)}.prog-fill.red{background:var(--red)}
+
+.pill{display:inline-flex;align-items:center;padding:2px 8px;border-radius:16px;font-size:10px;font-weight:700}
+.pill-g{background:var(--green-bg);color:#3B6D11}
+.pill-o{background:var(--orange-bg);color:#854F0B}
+.pill-b{background:#EBF3FB;color:#185FA5}
+.pill-r{background:var(--red-bg);color:#A32D2D}
+.pill-x{background:var(--gray);color:#6B7280}
+
+.sec{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+.sec:first-child{margin-top:0}
+
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{text-align:left;padding:5px 7px;color:var(--muted);border-bottom:1px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase}
+.tbl td{padding:7px 7px;border-bottom:1px solid #F9FAFB;color:#374151}
+.tbl tr:last-child td{border:none}
+.tbl tr:hover td{background:#FAFAFA}
+.note{font-size:11px;color:var(--muted);margin-top:6px;font-style:italic}
+
+/* CLASSIFICAÇÃO */
+.clf-bar{display:flex;gap:7px;flex-wrap:wrap;padding:13px 16px;border-top:1px solid var(--border);background:#FAFAFA;border-radius:0 0 var(--radius) var(--radius)}
+.clf-bar-label{width:100%;font-size:11px;font-weight:700;color:#374151;margin-bottom:5px}
+.clf-btn{flex:1;min-width:100px;padding:9px;border:2px solid var(--border);border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:#fff;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:5px}
+.clf-btn:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,.12)}
+.clf-btn.ap{border-color:var(--green);color:var(--green)}
+.clf-btn.ap:hover,.clf-btn.ap.on{background:var(--green);color:#fff}
+.clf-btn.sb{border-color:var(--orange);color:var(--orange)}
+.clf-btn.sb:hover,.clf-btn.sb.on{background:var(--orange);color:#fff}
+.clf-btn.rp{border-color:var(--red);color:var(--red)}
+.clf-btn.rp:hover,.clf-btn.rp.on{background:var(--red);color:#fff}
+
+/* HISTÓRICO */
+.hist-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;cursor:pointer;transition:background .12s;border-bottom:1px solid #F9FAFB}
+.hist-item:last-child{border:none}
+.hist-item:hover{background:#F0F7FF}
+.hist-item.selected{background:#EBF3FB;border-left:3px solid var(--blue)}
+.hist-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.hist-dot.ap{background:var(--green)}.hist-dot.sb{background:var(--orange)}.hist-dot.rp{background:var(--red)}.hist-dot.pe{background:var(--muted)}
+.hist-kw{flex:1;font-weight:600;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist-date{font-size:10px;color:var(--muted)}
+.hist-cost{font-size:10px;color:var(--muted);text-align:right}
+
+/* DONUT CHART */
+.chart-wrap{display:flex;align-items:center;gap:16px;padding:12px 0}
+.chart-svg{flex-shrink:0}
+.chart-legend{display:flex;flex-direction:column;gap:7px}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:11px}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.legend-val{font-weight:800;font-size:13px;margin-left:auto;min-width:24px;text-align:right}
+
+/* FILA DE COMPRAS */
+.queue-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;border:1px solid var(--border);margin-bottom:6px;background:#fff}
+.queue-num{width:24px;height:24px;border-radius:50%;background:var(--green);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.queue-info{flex:1;min-width:0}
+.queue-name{font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.queue-meta{font-size:11px;color:var(--muted);margin-top:1px}
+
+/* TRENDS */
+.tchart{display:flex;align-items:flex-end;gap:2px;height:90px;margin-bottom:6px}
+.tbar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px}
+.tbar{width:100%;border-radius:2px 2px 0 0;min-height:3px}
+.tlbl{font-size:7px;color:var(--muted);writing-mode:vertical-rl;transform:rotate(180deg);height:20px;overflow:hidden}
+
+/* REGIÕES */
+.reg-row{margin-bottom:7px}
+.reg-top{display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px}
+.reg-track{height:11px;background:var(--gray);border-radius:2px;overflow:hidden}
+.reg-fill{height:100%;border-radius:2px;background:var(--blue)}
+
+/* BUNDLES */
+.bundle-card{background:#F9FAFB;border:1px solid var(--border);border-radius:7px;padding:10px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+
+.s-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px)}
+.s-overlay.open{display:flex;animation:fade .2s}
+.s-modal{background:#fff;border-radius:14px;width:620px;max-width:100%;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden}
+.s-modal-hdr{background:var(--blue);padding:16px 20px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.s-close{background:rgba(255,255,255,.2);border:none;border-radius:6px;padding:5px 10px;color:#fff;font-size:16px;cursor:pointer;font-family:inherit;font-weight:700}
+.s-close:hover{background:rgba(255,255,255,.35)}
+.s-tabs{display:flex;border-bottom:1px solid var(--border);background:#F9FAFB;flex-shrink:0;overflow-x:auto}
+.s-tab{padding:10px 15px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;border:none;border-bottom:2px solid transparent;color:#6B7280;background:none;font-family:inherit}
+.s-tab.on{color:var(--blue);border-bottom-color:var(--blue);background:#fff}
+.s-body{padding:18px;overflow-y:auto;flex:1}
+.s-pane{display:none}
+.s-pane.on{display:block;animation:fade .2s}
+.s-field{margin-bottom:13px}
+.s-field label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px}
+.s-field input,.s-field textarea{width:100%;border:1.5px solid var(--border);border-radius:7px;padding:7px 11px;font-size:13px;font-family:inherit;outline:none;resize:vertical}
+.s-field input:focus,.s-field textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(52,131,250,.1)}
+.s-hint{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.5}
+.s-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.s-row.trio{grid-template-columns:1fr 1fr 1fr}
+.s-info{background:#F0F7FF;border:1px solid #C7DEF8;border-radius:7px;padding:10px 13px;font-size:12px;color:#185FA5;margin-bottom:14px;line-height:1.6}
+.s-stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:12px 0 8px}
+.s-stat{background:#F9FAFB;border:1px solid var(--border);border-radius:7px;padding:10px 12px}
+.s-stat-l{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:3px}
+.s-stat-v{font-size:18px;font-weight:800}
+.s-footer{padding:14px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0;background:#F9FAFB}
+/* GLOSSÁRIO */
+.gloss-section{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+.gloss-section:first-child{margin-top:0}
+.gloss-item{margin-bottom:9px}
+.gloss-term{font-size:12px;font-weight:700;color:var(--text);margin-bottom:2px}
+.gloss-def{font-size:12px;color:#6B7280;line-height:1.6}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1C1E24;color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:999;max-width:500px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.3);animation:fade .25s ease;display:flex;align-items:center;gap:10px}
+.toast.error{background:#A32D2D;border:1px solid var(--red)}
+.toast.warn{background:#854F0B;border:1px solid var(--orange)}
+.toast.ok{background:#006630;border:1px solid var(--green)}
+.toast-close{cursor:pointer;opacity:.7;flex-shrink:0;font-size:15px}
+
+/* ERR BANNER dentro do painel loading */
+.err-banner{background:var(--red-bg);border:1px solid var(--red-bd);border-radius:8px;padding:13px 15px;margin:14px 0;font-size:13px;color:#A32D2D;line-height:1.6;display:none}
+.err-banner.show{display:block;animation:fade .2s}
+.err-title{font-weight:700;margin-bottom:3px}
+
+/* NO DEMAND */
+.no-demand{text-align:center;padding:36px 20px}
+.nd-ico{font-size:44px;opacity:.4;margin-bottom:12px}
+.nd-title{font-size:16px;font-weight:800;margin-bottom:6px}
+.nd-sub{font-size:12px;color:#6B7280;margin-bottom:18px;line-height:1.6;max-width:340px;margin-left:auto;margin-right:auto}
+.nd-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;max-width:380px;margin:0 auto 20px}
+</style>
+</head>
+<body>
+
+<!-- ═══ NAV ═══ -->
+<nav>
+  <div class="logo">
+    <div class="logo-box">
+      <svg viewBox="0 0 22 22" fill="none" stroke="#3483FA" stroke-width="2.2"><circle cx="9" cy="9" r="6"/><line x1="14" y1="14" x2="20" y2="20" stroke-linecap="round"/></svg>
+    </div>
+    <span class="logo-name">Radar</span>
+    <span class="logo-badge">ML</span>
+  </div>
+
+  <div class="np">
+    <button class="nb on" onclick="goNav('radar',this)">🔍 Radar</button>
+    <button class="nb" onclick="goNav('ranking',this)">📍 Ranking</button>
+    <button class="nb" onclick="goNav('dashboard',this)">📊 Dashboard</button>
+    <button class="nb" onclick="goNav('diagnostico',this)">🏥 Diagnóstico</button>
+    <button class="nb" onclick="goNav('agente',this)">🤖 Agente</button>
+  </div>
+
+  <div class="nav-r">
+    <!-- API Status Icons -->
+    <div class="api-status off" id="claude-status" onclick="openSettings()" title="Configurar API Key Claude">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      Claude
+    </div>
+    <div class="api-status off" id="ml-status" onclick="toggleML()" title="Conectar Mercado Livre">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+      ML
+    </div>
+    <!-- Token Counter -->
+    <div class="tok-pill" id="tok-pill" onclick="openSettings()" title="Custo acumulado de pesquisas">
+      💰 <span id="tok-cost">$0.00</span>
+      <span style="color:rgba(0,0,0,.4)">|</span>
+      🔢 <span id="tok-count">0</span>
+    </div>
+    <button class="btn-set" onclick="openSettings()">⚙️</button>
+  </div>
+</nav>
+
+<!-- ═══ RADAR PAGE ═══ -->
+<div class="app" id="page-radar">
+
+  <!-- ══ LEFT PANEL ══ -->
+  <div id="left-panel">
+
+    <!-- INPUT FORM -->
+    <div class="card" id="input-card">
+      <div class="card-hdr">
+        <svg viewBox="0 0 22 22" fill="none" stroke="#fff" stroke-width="2"><circle cx="9" cy="9" r="6"/><line x1="14" y1="14" x2="20" y2="20" stroke-linecap="round"/></svg>
+        <div><h2>MercadoX</h2><p>Inteligência de mercado</p></div>
+
+      </div>
+      <div class="card-body">
+
+        <!-- FORMULÁRIO DE PESQUISA -->
+        <div id="search-form">
+          <div class="row2">
+            <div>
+              <label class="lbl">Produto</label>
+              <input class="inp" id="inp-produto" placeholder="alicate de pesca alumínio" onkeydown="if(event.key==='Enter')analyze()">
+              <div class="ierr" id="err-produto">Informe o produto</div>
+            </div>
+            <div>
+              <label class="lbl">Custo (R$)</label>
+              <input class="inp" id="inp-custo" type="number" step="0.01" placeholder="12.50" onkeydown="if(event.key==='Enter')analyze()">
+              <div class="ierr" id="err-custo">Informe o custo</div>
+            </div>
+          </div>
+
+          <label class="lbl">Foto <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">(opcional)</span></label>
+          <div class="upz" id="upz">
+            <input type="file" accept="image/*" onchange="handlePhoto(this)">
+            <div id="up-empty"><div style="font-size:20px;opacity:.3">📷</div><div style="font-size:11px;font-weight:600;color:#6B7280;margin-top:4px">Foto do produto (IA identifica)</div></div>
+            <img id="up-preview" alt="">
+          </div>
+          <div class="up-badge" id="up-badge"><div class="up-badge-inner">🗺️ IA identifica pela foto</div></div>
+
+          <div class="mk-title" style="margin-top:10px">Pesquisar em</div>
+          <div class="mk-grid">
+            <label class="mk-item ml checked" id="mk-ml-lbl"><input type="checkbox" id="mk-ml" checked onchange="updateMkStyle()"> 🛒 ML</label>
+            <label class="mk-item sh" id="mk-sh-lbl"><input type="checkbox" id="mk-sh" onchange="updateMkStyle()"> 🧡 Shopee</label>
+            <label class="mk-item az" id="mk-az-lbl"><input type="checkbox" id="mk-az" onchange="updateMkStyle()"> 📦 Amazon BR</label>
+            <label class="mk-item gg" id="mk-gg-lbl"><input type="checkbox" id="mk-gg" onchange="updateMkStyle()"> 🔍 Google</label>
+            <label class="mk-item us" id="mk-us-lbl"><input type="checkbox" id="mk-us" onchange="updateMkStyle()"> 🇺🇸 Amazon US</label>
+          </div>
+
+          <div class="chips">
+            <span class="chip" onclick="fill('alicate de pesca alumínio','12.50')">Alicate pesca</span>
+            <span class="chip" onclick="fill('smartwatch feminino','45')">Smartwatch</span>
+            <span class="chip" onclick="fill('mochila impermeável','35')">Mochila</span>
+            <span class="chip" onclick="fill('suporte notebook mesa','22')">Suporte notebook</span>
+            <span class="chip" onclick="fill('kit manicure','18')">Kit manicure</span>
+            <span class="chip" onclick="fill('luminária led','28')">Luminária LED</span>
+          </div>
+
+          <button class="btn-primary" onclick="analyze()">
+            <svg width="14" height="14" viewBox="0 0 22 22" fill="none" stroke="#fff" stroke-width="2"><circle cx="9" cy="9" r="6"/><line x1="14" y1="14" x2="20" y2="20" stroke-linecap="round"/></svg>
+            Analisar produto
+          </button>
+          <div class="btn-note">Pesquisa real via IA + web</div>
+        </div>
+
+        <!-- LOADING STATE -->
+        <div id="loading-form" style="display:none">
+          <div class="ld-wrap">
+            <div class="ld-spin" id="ld-spin"></div>
+            <div class="ld-msg" id="ld-msg">Pesquisando…</div>
+            <div class="ld-sub">Pode levar até 30 segundos</div>
+            <button class="btn-cancel" onclick="cancelAnalysis()">← Cancelar</button>
+            <div class="err-banner" id="err-banner">
+              <div class="err-title" id="err-title">❌ Erro</div>
+              <div id="err-body" style="margin-top:5px;font-size:12px"></div>
+              <button class="btn-sm" onclick="cancelAnalysis()" style="margin-top:10px">← Voltar e tentar novamente</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- ══ RIGHT PANEL ══ -->
+  <div id="right-panel">
+    <div class="rp-card" id="right-card">
+
+      <!-- Empty state inicial -->
+      <div id="rp-empty" class="rp-empty">
+        <div class="rp-empty-ico">🔍</div>
+        <div class="rp-empty-title">Pronto para analisar</div>
+        <div class="rp-empty-sub">Configure o produto no painel esquerdo e clique em Analisar</div>
+      </div>
+
+      <!-- Resultado da análise -->
+      <div id="rp-result" style="display:none">
+        <div class="rpt-hdr">
+          <div class="rpt-title" id="rpt-title">MercadoX</div>
+          <div class="rpt-meta" id="rpt-meta"></div>
+        </div>
+        <div class="tabs">
+          <button class="tab-btn on" onclick="showTab(0,this)">📊 Análise</button>
+          <button class="tab-btn" onclick="showTab(1,this)">💰 Financeiro</button>
+          <button class="tab-btn" onclick="showTab(2,this)">📈 Trends</button>
+          <button class="tab-btn" onclick="showTab(3,this)">🗺️ Regiões</button>
+          <button class="tab-btn" onclick="showTab(4,this)">🗂️ Categorias</button>
+          <button class="tab-btn" onclick="showTab(5,this);showHistory()">🕐 Histórico</button>
+          <button class="tab-btn" onclick="showTab(6,this);showQueue()">✅ Fila</button>
+        </div>
+        <div class="tab-pane on" id="tp0"></div>
+        <div class="tab-pane" id="tp1"></div>
+        <div class="tab-pane" id="tp2"></div>
+        <div class="tab-pane" id="tp3"></div>
+        <div class="tab-pane" id="tp4"></div>
+        <div class="tab-pane" id="tp5"></div>
+        <div class="tab-pane" id="tp6"></div>
+
+        <!-- CLASSIFICAÇÃO BAR -->
+        <div class="clf-bar" id="clf-bar">
+          <div class="clf-bar-label">Classificar esta pesquisa:</div>
+          <button class="clf-btn ap" onclick="classify('aprovado')">✅ Aprovado → Fila de compras</button>
+          <button class="clf-btn sb" onclick="classify('standby')">⏸️ Standby</button>
+          <button class="clf-btn rp" onclick="classify('reprovado')">❌ Reprovado</button>
+        </div>
+      </div>
+
+      <!-- Sem demanda -->
+      <div id="rp-no-demand" style="display:none">
+        <div class="no-demand">
+          <div class="nd-ico">📉</div>
+          <div class="nd-title">Sem demanda comprovada</div>
+          <div class="nd-sub" id="nd-sub"></div>
+          <div class="nd-stats" id="nd-stats"></div>
+          <button class="btn-sm primary" onclick="newSearch()">🔍 Nova análise</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- OTHER PAGES -->
+<div style="display:none;max-width:1300px;margin:0 auto;padding:14px" id="page-ranking">
+  <div class="card"><div class="rp-empty"><div class="rp-empty-ico">📍</div><div class="rp-empty-title">Ranking em breve</div></div></div>
+</div>
+<div style="display:none;max-width:1300px;margin:0 auto;padding:14px" id="page-dashboard">
+  <div class="card"><div class="rp-empty"><div class="rp-empty-ico">📊</div><div class="rp-empty-title">Dashboard em breve</div></div></div>
+</div>
+<div style="display:none;max-width:1300px;margin:0 auto;padding:14px" id="page-diagnostico">
+  <div class="card"><div class="rp-empty"><div class="rp-empty-ico">🏥</div><div class="rp-empty-title">Diagnóstico em breve</div></div></div>
+</div>
+<div style="display:none;max-width:1300px;margin:0 auto;padding:14px" id="page-agente">
+  <div class="card"><div class="rp-empty"><div class="rp-empty-ico">🤖</div><div class="rp-empty-title">Agente IA em breve</div></div></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+//  CONSTANTS & CONFIG
+// ═══════════════════════════════════════
+const W   = 'https://ml-radar.godoyodontologia.workers.dev';
+const ANT = 'https://api.anthropic.com/v1/messages';
+const MDL = 'claude-sonnet-4-6';
+// Preços Sonnet 4.5: $3/MTok input, $15/MTok output
+const PRICE_IN  = 3 / 1_000_000;
+const PRICE_OUT = 15 / 1_000_000;
+
+const TID = (() => {
+  let t = localStorage.getItem('r-tid');
+  if (!t) { t = 'u_' + Math.random().toString(36).slice(2, 10); localStorage.setItem('r-tid', t); }
+  return t;
+})();
+
+const CFG = {
+  get key()  { return localStorage.getItem('r-key')  || ''; },
+  get meta() { return parseFloat(localStorage.getItem('r-meta') || 80000); },
+  get tc()   { return parseFloat(localStorage.getItem('r-tc')   || 11.5) / 100; },
+  get tp()   { return parseFloat(localStorage.getItem('r-tp')   || 16) / 100; },
+  get tf()   { return parseFloat(localStorage.getItem('r-tf')   || 7); },
+  get vm()   { return parseInt(localStorage.getItem('r-vm')     || 500); },
+  get mm()   { return parseFloat(localStorage.getItem('r-mm')   || 25); },
+  get an()   { return parseInt(localStorage.getItem('r-an')     || 3); },
+  get jn()   { return parseInt(localStorage.getItem('r-jn')     || 90); },
+  get ctx()  { return localStorage.getItem('r-ctx')  || ''; },
+  get doc()  { return localStorage.getItem('r-doc')  || ''; },
+};
+
+// Estado global
+let PHOTO_B64 = null;
+let CURRENT_SEARCH_ID = null;
+let LAST_DATA = null;
+
+// ═══════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSettings(); });
+window.onload = async () => {
+  if (new URLSearchParams(location.search).get('ml_connected') === '1')
+    history.replaceState({}, '', '/');
+  loadSettingsUI();
+  updateTokUI();
+  updateMkStyle();
+  await checkAuth();
+  updateClaudeStatus();
+};
+
+// ═══════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════
+function goNav(name, btn) {
+  ['radar','ranking','dashboard','diagnostico','agente'].forEach(p => {
+    document.getElementById('page-' + p).style.display = 'none';
+  });
+  document.querySelectorAll('.nb').forEach(b => b.classList.remove('on'));
+  const el = document.getElementById('page-' + name);
+  if (el) el.style.display = name === 'radar' ? 'grid' : 'block';
+  if (btn) btn.classList.add('on');
+}
+
+function showTab(i, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('on'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('on'));
+  if (btn) btn.classList.add('on');
+  const pane = document.getElementById('tp' + i);
+  if (pane) pane.classList.add('on');
+}
+
+// ═══════════════════════════════════════
+//  SETTINGS
+// ═══════════════════════════════════════
+function openSettings(tab) {
+  loadSettingsUI();
+  updateStatsUI();
+  document.getElementById('s-overlay').classList.add('open');
+  if (tab !== undefined) showSTab(tab, document.querySelectorAll('.s-tab')[tab]);
+}
+function closeSettings() {
+  document.getElementById('s-overlay').classList.remove('open');
+}
+function toggleSettings() { openSettings(); }
+function showSTab(i, btn) {
+  document.querySelectorAll('.s-tab').forEach(b => b.classList.remove('on'));
+  document.querySelectorAll('.s-pane').forEach(p => p.classList.remove('on'));
+  if (btn) btn.classList.add('on');
+  const pane = document.getElementById('sp' + i);
+  if (pane) pane.classList.add('on');
+}
+function updateStatsUI() {
+  const tokIn  = parseInt(localStorage.getItem('r-tok-in')  || 0);
+  const tokOut = parseInt(localStorage.getItem('r-tok-out') || 0);
+  const n      = parseInt(localStorage.getItem('r-searches-n') || 0);
+  const cost   = tokIn * PRICE_IN + tokOut * PRICE_OUT;
+  const totEl = document.getElementById('ss-tok');
+  const nEl   = document.getElementById('ss-n');
+  const costEl= document.getElementById('ss-cost');
+  if (totEl)  totEl.textContent  = (tokIn + tokOut).toLocaleString('pt-BR');
+  if (nEl)    nEl.textContent    = n;
+  if (costEl) costEl.textContent = '$' + cost.toFixed(3);
+}
+function loadSettingsUI() {
+  const keys = [['r-key','s-key'],['r-meta','s-meta'],['r-tc','s-tc'],['r-tp','s-tp'],
+                ['r-tf','s-tf'],['r-vm','s-vm'],['r-mm','s-mm'],['r-an','s-an'],
+                ['r-jn','s-jn'],['r-ctx','s-ctx']];
+  keys.forEach(([k,id]) => {
+    const el = document.getElementById(id);
+    if (el) el.value = localStorage.getItem(k) || (id==='s-meta'?'80000':id==='s-tc'?'11.5':id==='s-tp'?'16':id==='s-tf'?'7':id==='s-vm'?'500':id==='s-mm'?'25':id==='s-an'?'3':id==='s-jn'?'90':'');
+  });
+  const dn = localStorage.getItem('r-doc-name');
+  if (dn) { document.getElementById('doc-name').textContent = '📄 ' + dn; document.getElementById('doc-name').style.display = 'block'; }
+}
+function saveSettings() {
+  [['r-key','s-key'],['r-meta','s-meta'],['r-tc','s-tc'],['r-tp','s-tp'],
+   ['r-tf','s-tf'],['r-vm','s-vm'],['r-mm','s-mm'],['r-an','s-an'],
+   ['r-jn','s-jn'],['r-ctx','s-ctx']].forEach(([k,id]) => {
+    const el = document.getElementById(id);
+    if (el) localStorage.setItem(k, el.value.trim());
+  });
+  updateClaudeStatus();
+  toast('✅ Configurações salvas', 'ok', 3000);
+}
+function clearCost() {
+  if (confirm('Zerar o contador de tokens e custos?')) {
+    localStorage.removeItem('r-tok-in'); localStorage.removeItem('r-tok-out');
+    localStorage.removeItem('r-searches-n'); updateTokUI();
+  }
+}
+
+// ═══════════════════════════════════════
+//  API STATUS INDICATORS
+// ═══════════════════════════════════════
+function updateClaudeStatus() {
+  const el = document.getElementById('claude-status');
+  if (CFG.key && CFG.key.startsWith('sk-')) {
+    el.className = 'api-status ok'; el.title = 'Claude API conectada';
+  } else {
+    el.className = 'api-status err'; el.title = 'Configure a API Key Claude';
+  }
+}
+function updateMLStatus(connected, nickname) {
+  const el = document.getElementById('ml-status');
+  if (connected) {
+    el.className = 'api-status ok';
+    el.innerHTML = el.innerHTML.replace('ML', nickname || 'ML');
+    el.title = 'ML conectado — clique para desconectar';
+  } else {
+    el.className = 'api-status off'; el.title = 'Clique para conectar Mercado Livre';
+  }
+}
+
+// ═══════════════════════════════════════
+//  TOKEN TRACKING
+// ═══════════════════════════════════════
+function addTokens(tokIn, tokOut) {
+  const prevIn  = parseInt(localStorage.getItem('r-tok-in')  || 0);
+  const prevOut = parseInt(localStorage.getItem('r-tok-out') || 0);
+  const prevN   = parseInt(localStorage.getItem('r-searches-n') || 0);
+  localStorage.setItem('r-tok-in',  prevIn  + tokIn);
+  localStorage.setItem('r-tok-out', prevOut + tokOut);
+  localStorage.setItem('r-searches-n', prevN + 1);
+  updateTokUI();
+}
+function updateTokUI() {
+  const tokIn  = parseInt(localStorage.getItem('r-tok-in')  || 0);
+  const tokOut = parseInt(localStorage.getItem('r-tok-out') || 0);
+  const n      = parseInt(localStorage.getItem('r-searches-n') || 0);
+  const cost   = tokIn * PRICE_IN + tokOut * PRICE_OUT;
+  document.getElementById('tok-cost').textContent  = '$' + cost.toFixed(3);
+  document.getElementById('tok-count').textContent = n;
+}
+
+// ═══════════════════════════════════════
+//  AUTH ML
+// ═══════════════════════════════════════
+async function checkAuth() {
+  try {
+    const r = await fetch(W + '/auth/status?tenant_id=' + TID).then(r => r.json());
+    if (r.connected && !r.is_expired) updateMLStatus(true, r.profile?.nickname);
+    else updateMLStatus(false);
+  } catch(e) { updateMLStatus(false); }
+}
+async function toggleML() {
+  const el = document.getElementById('ml-status');
+  if (el.classList.contains('ok')) {
+    if (!confirm('Desconectar do Mercado Livre?')) return;
+    await fetch(W + '/auth/revoke?tenant_id=' + TID, { method: 'POST' });
+    el.className = 'api-status off';
+    el.innerHTML = el.innerHTML.replace(/[A-Z].+$/, 'ML');
+  } else {
+    window.location.href = W + '/auth/login?tenant_id=' + TID;
+  }
+}
+
+// ═══════════════════════════════════════
+//  PHOTO & DOCUMENT
+// ═══════════════════════════════════════
+function handlePhoto(inp) {
+  const f = inp.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = e => {
+    PHOTO_B64 = e.target.result;
+    const prev = document.getElementById('up-preview');
+    prev.src = PHOTO_B64; prev.style.display = 'block';
+    document.getElementById('up-empty').style.display = 'none';
+    document.getElementById('upz').classList.add('has');
+    document.getElementById('up-badge').style.display = 'block';
+  };
+  r.readAsDataURL(f);
+}
+
+async function handleDoc(inp) {
+  const f = inp.files[0]; if (!f) return;
+  document.getElementById('doc-zone').textContent = '⏳ Processando…';
+  try {
+    let text = '';
+    if (f.type === 'application/pdf') {
+      const buf = await f.arrayBuffer();
+      if (typeof pdfjsLib !== 'undefined') {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+        for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
+          const pg = await pdf.getPage(i);
+          const tc = await pg.getTextContent();
+          text += tc.items.map(it => it.str).join(' ') + '\n';
+        }
+      }
+    } else {
+      text = await f.text();
+    }
+    const trimmed = text.slice(0, 8000);
+    localStorage.setItem('r-doc', trimmed);
+    localStorage.setItem('r-doc-name', f.name);
+    document.getElementById('doc-zone').innerHTML = `📄 ${f.name} <div class="doc-tag">✅ ${Math.round(trimmed.length/1000)}k chars carregados</div>`;
+  } catch(e) {
+    document.getElementById('doc-zone').textContent = '❌ Erro ao processar: ' + e.message;
+  }
+}
+
+// ═══════════════════════════════════════
+//  MARKETPLACE STYLE
+// ═══════════════════════════════════════
+function updateMkStyle() {
+  ['ml','sh','az','gg','us'].forEach(id => {
+    const cb = document.getElementById('mk-' + id);
+    const lbl = document.getElementById('mk-' + id + '-lbl');
+    if (cb && lbl) {
+      if (cb.checked) lbl.classList.add('checked');
+      else lbl.classList.remove('checked');
+    }
+  });
+}
+
+function fill(p, c) {
+  document.getElementById('inp-produto').value = p;
+  document.getElementById('inp-custo').value = c;
+}
+
+// ═══════════════════════════════════════
+//  ERROR DISPLAY
+// ═══════════════════════════════════════
+function showError(title, body, inPanel) {
+  if (inPanel) {
+    // Erro no painel de loading — mostra banner, para o spinner
+    document.getElementById('ld-spin').style.display = 'none';
+    document.getElementById('ld-msg').style.display  = 'none';
+    document.querySelector('.btn-cancel').style.display = 'none';
+    const banner = document.getElementById('err-banner');
+    document.getElementById('err-title').textContent = '❌ ' + title;
+    document.getElementById('err-body').textContent  = body;
+    banner.classList.add('show');
+  } else {
+    toast(title + ': ' + body, 'error', 6000);
+  }
+}
+
+function toast(msg, type, duration) {
+  const t = type || 'error', d = duration || 5000;
+  const el = document.createElement('div');
+  el.className = 'toast ' + t;
+  el.innerHTML = `<span>${msg}</span><span class="toast-close" onclick="this.parentNode.remove()">✕</span>`;
+  document.body.appendChild(el);
+  setTimeout(() => { if (el.parentNode) el.remove(); }, d);
+}
+
+function resetLoadingUI() {
+  document.getElementById('ld-spin').style.display = '';
+  document.getElementById('ld-msg').style.display  = '';
+  document.querySelector('.btn-cancel').style.display = '';
+  const banner = document.getElementById('err-banner');
+  banner.classList.remove('show');
+}
+
+// ═══════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════
+const fmt  = n => parseFloat(n||0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtP = n => parseFloat(n||0).toFixed(1);
+const fmtN = n => parseInt(n||0).toLocaleString('pt-BR');
+
+function calcFin(preco, custo) {
+  const p = parseFloat(preco) || 0, c = parseFloat(custo) || 0;
+  const lucroC = p - p * CFG.tc - CFG.tf - c;
+  const lucroP = p - p * CFG.tp - CFG.tf - c;
+  const margemC = p > 0 ? lucroC / p * 100 : 0;
+  const margemP = p > 0 ? lucroP / p * 100 : 0;
+  return { preco: p, custo: c, lucroC, lucroP, margemC, margemP,
+    roi: c > 0 ? lucroC / c * 100 : 0,
+    breakeven: lucroC > 0 ? Math.ceil(c * 5 / lucroC) : 999,
+    inv12: c * 12 };
+}
+
+// ═══════════════════════════════════════
+//  STATES
+// ═══════════════════════════════════════
+function setLeftState(state) {
+  document.getElementById('search-form').style.display  = state === 'form' ? '' : 'none';
+  document.getElementById('loading-form').style.display = state === 'load' ? '' : 'none';
+}
+function setRightState(state) {
+  document.getElementById('rp-empty').style.display     = state === 'empty'     ? '' : 'none';
+  document.getElementById('rp-result').style.display    = state === 'result'    ? '' : 'none';
+  document.getElementById('rp-no-demand').style.display = state === 'no-demand' ? '' : 'none';
+}
+function setLdMsg(m) { document.getElementById('ld-msg').textContent = m; }
+function cancelAnalysis() { resetLoadingUI(); setLeftState('form'); setRightState('empty'); }
+function newSearch() { setLeftState('form'); setRightState('empty'); CURRENT_SEARCH_ID = null; LAST_DATA = null; }
+
+// ═══════════════════════════════════════
+//  PROMPT BUILDER
+// ═══════════════════════════════════════
+function buildPrompt(produto, custo, sites, mkSH, mkAZ, mkGG, mkUS) {
+  const ctx = (CFG.ctx + '\n\n' + CFG.doc).trim();
+  return `INSTRUÇÃO CRÍTICA: Você TEM acesso a ferramentas de busca web. USE o web_search AGORA para navegar nos sites abaixo e coletar dados reais. NÃO diga que não tem acesso — você tem. Faça múltiplas buscas se necessário.
+
+[MercadoX] produto="${produto}" custo=R$${parseFloat(custo).toFixed(2)}
+
+${ctx ? `CONTEXTO DO VENDEDOR:\n${ctx.slice(0, 2000)}\n\n` : ''}AÇÃO OBRIGATÓRIA: Pesquise "${produto}" nos seguintes sites AGORA: ${sites.join(', ')}
+Para cada site selecionado, busque: preços, quantidade de vendas, avaliações, vendedores principais.
+Taxa ML clássico: ${fmtP(CFG.tc*100)}% + R$${CFG.tf} fixo | Margem mínima: ${CFG.mm}%
+IMPORTANTE: Preencha todos os campos numéricos com dados REAIS encontrados. Se não encontrar algum dado específico, estime baseado no que encontrou. Nunca retorne arrays vazios se o produto existe no mercado.
+${mkSH ? 'Shopee Brasil: taxa ~20%.' : ''}
+${mkAZ ? 'Amazon Brasil: taxa ~15%.' : ''}
+${mkGG ? 'Google: busque preços, volume de interesse, tendências, fornecedores.' : ''}
+${mkUS ? 'Amazon EUA (amazon.com): busque preços em dólar, fornecedores, importação.' : ''}
+
+Retorne APENAS o JSON abaixo com dados reais pesquisados (sem markdown):
+{
+  "produto": "${produto}",
+  "c1_ok": true,  // Use false APENAS se não encontrar NENHUM produto. Se encontrou qualquer produto, use true
+  "preco_medio": 0,
+  "preco_min": 0,
+  "preco_max": 0,
+  "p25": 0,
+  "p75": 0,
+  "vendas_mes": 0,
+  "velocidade_dia": 0,
+  "anuncios_ativos": 0,
+  "score_geral": 0,
+  "c1_anuncios": [
+    {"titulo":"","preco":0,"rating":0,"tempo":"","vendas90d":0,"link":""}
+  ],
+  "top8": [
+    {"num":1,"titulo":"","preco":0,"rating":0,"tempo":"","total_vendas":0,"vpd":0,"link":""}
+  ],
+  "forcas": ["","",""],
+  "alertas": ["",""],
+  "scores": {"demanda":0,"concorrencia":0,"margem":0,"tendencia":0,"logistica":0,"escala":0},
+  "trends_24m": [
+    {"m":"Jan/24","v":0},{"m":"Fev/24","v":0},{"m":"Mar/24","v":0},{"m":"Abr/24","v":0},
+    {"m":"Mai/24","v":0},{"m":"Jun/24","v":0},{"m":"Jul/24","v":0},{"m":"Ago/24","v":0},
+    {"m":"Set/24","v":0},{"m":"Out/24","v":0},{"m":"Nov/24","v":0},{"m":"Dez/24","v":0},
+    {"m":"Jan/25","v":0},{"m":"Fev/25","v":0},{"m":"Mar/25","v":0},{"m":"Abr/25","v":0},
+    {"m":"Mai/25","v":0},{"m":"Jun/25","v":0},{"m":"Jul/25","v":0},{"m":"Ago/25","v":0},
+    {"m":"Set/25","v":0},{"m":"Out/25","v":0},{"m":"Nov/25","v":0},{"m":"Dez/25","v":0}
+  ],
+  "tendencia": "Estável",
+  "tendencia_interp": "",
+  "regioes": [
+    {"estado":"São Paulo","pct":0,"nivel":"Alta"},
+    {"estado":"Paraná","pct":0,"nivel":"Alta"},
+    {"estado":"Minas Gerais","pct":0,"nivel":"Média"},
+    {"estado":"Rio Grande do Sul","pct":0,"nivel":"Média"},
+    {"estado":"Rio de Janeiro","pct":0,"nivel":"Baixa"},
+    {"estado":"Santa Catarina","pct":0,"nivel":"Baixa"}
+  ],
+  "categorias": [{"nome":"","count":0}],
+  "bundles": [
+    {"nome":"","custo_est":0,"preco_sug":0,"margem_est":0}
+  ],
+  "comparativo": [
+    {"marketplace":"","preco_medio":0,"vantagem":"","disponibilidade":""}
+  ],
+  "fornecedor_us": {"disponivel":false,"preco_usd":0,"preco_brl_est":0,"observacao":""},
+  "melhor_canal": "",
+  "melhor_canal_motivo": "",
+  "proximo_passo": "TESTAR",
+  "proximo_passo_motivo": ""
+}`;
+}
+
+// ═══════════════════════════════════════
+//  JSON EXTRACTION (com repair)
+// ═══════════════════════════════════════
+function extractJSON(text) {
+  const start = text.indexOf('{');
+  if (start < 0) return null;
+  const end = text.lastIndexOf('}') + 1;
+  if (end <= start) return null;
+  let s = text.slice(start, end);
+
+  // Tentativa 1: parse direto
+  try { return JSON.parse(s); } catch(e) {}
+
+  // Tentativa 2: limpar caracteres de controle
+  s = s.replace(/[ --]/g, '');
+  try { return JSON.parse(s); } catch(e) {}
+
+  // Tentativa 3: JSON truncado — encontrar o maior objeto válido
+  for (let i = s.length - 1; i > 10; i--) {
+    if (s[i] === '}') {
+      try { return JSON.parse(s.slice(0, i + 1)); } catch(e) {}
+    }
+  }
+
+  // Tentativa 4: extrair campos individualmente e montar objeto mínimo
+  console.warn('JSON repair: usando extração manual');
+  try {
+    const getField = (k, fallback) => {
+      const m = s.match(new RegExp('"' + k + '"\s*:\s*([^,}\n]+)'));
+      if (!m) return fallback;
+      try { return JSON.parse(m[1].trim()); } catch(e) { return fallback; }
+    };
+    return {
+      produto: getField('produto', ''),
+      c1_ok: getField('c1_ok', false),
+      preco_medio: getField('preco_medio', 0),
+      preco_min: getField('preco_min', 0),
+      preco_max: getField('preco_max', 0),
+      vendas_mes: getField('vendas_mes', 0),
+      anuncios_ativos: getField('anuncios_ativos', 0),
+      score_geral: getField('score_geral', 0),
+      c1_anuncios: [], top8: [], forcas: [], alertas: [],
+      scores: {demanda:0,concorrencia:0,margem:0,tendencia:0,logistica:0,escala:0},
+      trends_24m: [], tendencia: 'Indisponível', tendencia_interp: '',
+      regioes: [], categorias: [], bundles: [], comparativo: [],
+      proximo_passo: 'AVALIAR', proximo_passo_motivo: 'Dados parciais por resposta truncada.'
+    };
+  } catch(e2) { return null; }
+}
+
+// ═══════════════════════════════════════
+//  ANALYZE
+// ═══════════════════════════════════════
+async function analyze() {
+  const produto = document.getElementById('inp-produto').value.trim();
+  const custo   = parseFloat(document.getElementById('inp-custo').value);
+
+  document.getElementById('err-produto').style.display = 'none';
+  document.getElementById('err-custo').style.display   = 'none';
+  if (!produto) { document.getElementById('err-produto').style.display = 'block'; return; }
+  if (!custo || custo <= 0) { document.getElementById('err-custo').style.display = 'block'; return; }
+  if (!CFG.key) { toast('⚙️ Configure a API Key Claude nos Parâmetros', 'warn', 5000); openSettings(); return; }
+
+  const mkML = document.getElementById('mk-ml').checked;
+  const mkSH = document.getElementById('mk-sh').checked;
+  const mkAZ = document.getElementById('mk-az').checked;
+  const mkGG = document.getElementById('mk-gg').checked;
+  const mkUS = document.getElementById('mk-us').checked;
+  if (!mkML && !mkSH && !mkAZ && !mkGG && !mkUS) { toast('Selecione ao menos um canal de pesquisa', 'warn'); return; }
+
+  const sites = [
+    mkML && 'mercadolivre.com.br',
+    mkSH && 'shopee.com.br',
+    mkAZ && 'amazon.com.br',
+    mkGG && 'google.com.br',
+    mkUS && 'amazon.com'
+  ].filter(Boolean);
+
+  setLeftState('load');
+  setRightState('empty');
+  CURRENT_SEARCH_ID = null;
+
+  // 1. Identificar produto por foto
+  let prodFinal = produto;
+  if (PHOTO_B64) {
+    setLdMsg('Identificando produto pela foto…');
+    try {
+      const b64  = PHOTO_B64.split(',')[1];
+      const mime = PHOTO_B64.split(';')[0].split(':')[1];
+      const r = await fetch(ANT, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'x-api-key': CFG.key,
+          'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+        body: JSON.stringify({ model: MDL, max_tokens: 60,
+          messages: [{ role: 'user', content: [
+            { type: 'image', source: { type: 'base64', media_type: mime, data: b64 } },
+            { type: 'text', text: 'Nome genérico deste produto para busca no ML Brasil. 3-5 palavras, sem marca. Apenas o nome.' }
+          ]}]})
+      });
+      const d = await r.json();
+      const nome = d.content?.find(b => b.type === 'text')?.text?.trim();
+      if (nome) prodFinal = nome;
+    } catch(e) {}
+  }
+
+  // 2. Pesquisa Claude + web_search
+  setLdMsg('Pesquisando "' + prodFinal + '" em ' + sites.join(', ') + '…');
+
+  let data;
+  let tokIn = 0, tokOut = 0;
+
+  try {
+    const r = await fetch(ANT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': CFG.key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+        'anthropic-beta': 'web-search-2025-03-05'
+      },
+      const numSites = sites.length;
+      const maxTok = numSites <= 1 ? 4000 : numSites <= 3 ? 6000 : 8000;
+      body: JSON.stringify({
+        model: MDL,
+        max_tokens: maxTok,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{ role: 'user', content: buildPrompt(prodFinal, custo, sites, mkSH, mkAZ, mkGG, mkUS) }]
+      })
+    });
+
+    if (!r.ok) {
+      const e = await r.text();
+      let errMsg = 'Anthropic ' + r.status;
+      try { const ej = JSON.parse(e); errMsg = ej.error?.message || errMsg; } catch(ex) {}
+      throw new Error(errMsg);
+    }
+
+    const resp = await r.json();
+
+    // Track tokens
+    tokIn  = resp.usage?.input_tokens  || 0;
+    tokOut = resp.usage?.output_tokens || 0;
+    addTokens(tokIn, tokOut);
+
+    const textBlock = resp.content?.find(b => b.type === 'text');
+    if (!textBlock?.text) throw new Error('Sem resposta. Verifique a API Key e o saldo.');
+
+    const txt = textBlock.text;
+    data = extractJSON(txt);
+    if (!data) throw new Error('Não foi possível extrair dados. Tente novamente ou com menos marketplaces.');
+
+  } catch(e) {
+    console.error(e);
+    const title = e.message.includes('credit') ? 'Saldo insuficiente na Anthropic' :
+                  e.message.includes('401') ? 'API Key inválida' :
+                  e.message.includes('429') ? 'Limite de requisições atingido' :
+                  'Erro na análise';
+    showError(title, e.message, true);
+    return;
+  }
+
+  // 3. Checar C1
+  if (!data.c1_ok) {
+    document.getElementById('nd-sub').textContent =
+      'Não encontramos ' + CFG.an + ' anúncios com ' + CFG.vm + '+ vendas para "' + prodFinal + '".';
+    document.getElementById('nd-stats').innerHTML = [
+      { l: 'Preço médio', v: 'R$' + (data.preco_medio||0).toFixed(0) },
+      { l: 'Anúncios',    v: fmtN(data.anuncios_ativos) },
+      { l: 'Tokens usados', v: (tokIn + tokOut).toLocaleString('pt-BR') },
+    ].map(s => `<div class="kpi"><div class="kpi-l">${s.l}</div><div class="kpi-v" style="font-size:16px">${s.v}</div></div>`).join('');
+    setLeftState('form');
+    setRightState('no-demand');
+    // Salvar no D1 mesmo sem demanda
+    saveSearch(prodFinal, custo, data, calcFin(data.preco_medio||0, custo), 'REPROVADO', tokIn, tokOut);
+    return;
+  }
+
+  // 4. Financeiro
+  const fin = calcFin(data.preco_medio, custo);
+
+  // 5. Salvar D1
+  const verd = fin.margemC >= CFG.mm ? 'APROVADO' : 'ALTO POTENCIAL';
+  const savedId = await saveSearch(prodFinal, custo, data, fin, verd, tokIn, tokOut);
+  CURRENT_SEARCH_ID = savedId;
+
+  // 6. Guardar e renderizar
+  LAST_DATA = { produto: prodFinal, custo, data, fin, ts: new Date().toLocaleString('pt-BR'), tokIn, tokOut };
+  renderReport(LAST_DATA);
+  setLeftState('form');
+  setRightState('result');
+
+  // Scroll to result on mobile
+  if (window.innerWidth <= 820)
+    document.getElementById('right-card').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function saveSearch(produto, custo, data, fin, verd, tokIn, tokOut) {
+  try {
+    const r = await fetch(W + '/db/search-save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': TID },
+      body: JSON.stringify({
+        keyword: produto, cost: custo, avg_price: data.preco_medio || 0,
+        margin_c: fin.margemC, verdict: verd,
+        score: data.score_geral || 0,
+        v1_ok: !!data.c1_ok, v2_ok: fin.margemC >= CFG.mm,
+        total_ads: data.anuncios_ativos || 0,
+        est_monthly: data.vendas_mes || 0,
+        tokens_in: tokIn, tokens_out: tokOut,
+        cost_usd: tokIn * PRICE_IN + tokOut * PRICE_OUT
+      })
+    });
+    const d = await r.json();
+    return d.id || null;
+  } catch(e) { return null; }
+}
+
+// ═══════════════════════════════════════
+//  CLASSIFY
+// ═══════════════════════════════════════
+async function classify(status) {
+  document.querySelectorAll('.clf-btn').forEach(b => b.classList.remove('on'));
+  const map = { 'aprovado': 'ap', 'standby': 'sb', 'reprovado': 'rp' };
+  const btn = document.querySelector('.clf-btn.' + map[status]);
+  if (btn) btn.classList.add('on');
+
+  if (!CURRENT_SEARCH_ID) return;
+  try {
+    await fetch(W + '/db/search-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Tenant-ID': TID },
+      body: JSON.stringify({ id: CURRENT_SEARCH_ID, status })
+    });
+    if (status === 'aprovado') {
+      const msg = document.createElement('div');
+      msg.className = 'box box-g';
+      msg.style.cssText = 'margin:8px 16px;animation:fade .3s';
+      msg.innerHTML = '<strong>✅ Adicionado à fila de compras!</strong> Clique na aba "✅ Fila" para ver.';
+      const clf = document.getElementById('clf-bar');
+      clf.parentNode.insertBefore(msg, clf);
+      setTimeout(() => msg.remove(), 4000);
+    }
+  } catch(e) {}
+}
+
+// ═══════════════════════════════════════
+//  RENDER REPORT
+// ═══════════════════════════════════════
+function renderReport(D) {
+  const p = D.produto, custo = D.custo, d = D.data, fin = D.fin, ts = D.ts;
+  const aprovado = d.c1_ok && fin.margemC >= CFG.mm;
+  const tokCost  = (D.tokIn * PRICE_IN + D.tokOut * PRICE_OUT).toFixed(4);
+
+  document.getElementById('rpt-title').textContent = 'MercadoX — ' + p;
+  document.getElementById('rpt-meta').textContent  =
+    'Custo: R$' + fmt(custo) + ' · ' + ts + ' · $' + tokCost;
+
+  // Reset tabs
+  showTab(0, document.querySelector('.tab-btn'));
+
+  // ── TAB 0: ANÁLISE ──────────────────────────────
+  let t0 = '';
+
+  // C1
+  const cands = (d.c1_anuncios || []).filter(a => a.titulo || a.title);
+  t0 += `<div class="box ${d.c1_ok?'box-g':'box-r'}">
+    <div class="box-title">${d.c1_ok?'✅ Critério 1 — Demanda comprovada':'❌ Critério 1 — Demanda insuficiente'}</div>
+    <div class="box-body">${cands.length} anúncio(s) com ${CFG.vm}+ vendas encontrado(s).</div>
+  </div>`;
+
+  cands.slice(0, 3).forEach(a => {
+    const link = a.link || '#';
+    t0 += `<div style="background:#F9FAFB;border:1px solid var(--border);border-radius:7px;padding:10px 12px;margin-bottom:6px">
+      <div style="font-size:12px;font-weight:600;margin-bottom:5px">${a.titulo||a.title||''}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">
+        <span class="pill pill-x">R$${fmt(a.preco||a.price||0)}</span>
+        ${a.rating ? `<span class="pill pill-g">${a.rating}★</span>` : ''}
+        <span class="pill pill-g">${fmtN(a.vendas90d||0)} vendas/90d</span>
+        ${link!='#' ? `<a class="pill pill-b" href="${link}" target="_blank" style="text-decoration:none">↗ Ver</a>` : ''}
+      </div>
+    </div>`;
+  });
+
+  // C2
+  const c2ok = fin.margemC >= CFG.mm;
+  const pct  = Math.min(Math.max(fin.margemC, 0), 100).toFixed(1);
+  t0 += `<div class="box ${c2ok?'box-g':'box-r'}" style="margin-top:4px">
+    <div class="box-title">${c2ok?'✅':'❌'} Critério 2 — Margem ${c2ok?'aprovada':'insuficiente'}: ${fmtP(fin.margemC)}%</div>
+    <div class="box-body" style="font-size:11px">R$${fmt(fin.preco)} − taxa ${fmtP(CFG.tc*100)}%: −R$${fmt(fin.preco*CFG.tc)} − R$${fmt(CFG.tf)} fixo − custo R$${fmt(custo)} = <strong>R$${fmt(fin.lucroC)}</strong></div>
+    <div class="prog"><div class="prog-fill ${c2ok?'green':'orange'}" style="width:${pct}%"></div></div>
+    <div style="text-align:right;font-size:11px;margin-top:1px">${fmtP(fin.margemC)}% / mín. ${CFG.mm}%</div>
+  </div>`;
+
+  // Veredicto
+  const vcls = aprovado ? 'box-g' : d.c1_ok ? 'box-o' : 'box-r';
+  const vtxt = aprovado ? '🎉 APROVADO' : d.c1_ok ? '⚠️ ALTO POTENCIAL' : '❌ DESCARTADO';
+  t0 += `<div class="box ${vcls}" style="margin-top:4px">
+    <div class="box-title" style="font-size:14px">${vtxt}</div>
+    <div class="box-body">${d.proximo_passo_motivo||''}</div>
+  </div>`;
+
+  // KPIs
+  t0 += `<div class="sec">Métricas de mercado</div>
+  <div class="kpis">
+    <div class="kpi"><div class="kpi-l">Preço médio</div><div class="kpi-v blue">R$${fmt(d.preco_medio||0)}</div><div class="kpi-s">P25: R$${fmt(d.p25||0)} P75: R$${fmt(d.p75||0)}</div></div>
+    <div class="kpi"><div class="kpi-l">Vendas/mês</div><div class="kpi-v">${fmtN(d.vendas_mes||0)}</div><div class="kpi-s">~${d.velocidade_dia||0}/dia</div></div>
+    <div class="kpi"><div class="kpi-l">Anúncios ativos</div><div class="kpi-v">${fmtN(d.anuncios_ativos||0)}</div><div class="kpi-s">na categoria</div></div>
+  </div>`;
+
+  // Scores
+  const sc = d.scores || {};
+  const scArr = [
+    { l:'Demanda',      v: sc.demanda||0,      c:'blue' },
+    { l:'Concorrência', v: sc.concorrencia||0, c:'orange' },
+    { l:'Margem',       v: sc.margem||0,       c:'green' },
+    { l:'Tendência',    v: sc.tendencia||0,    c:'blue' },
+    { l:'Logística',    v: sc.logistica||0,    c:'green' },
+    { l:'Escala',       v: sc.escala||0,       c:'orange' },
+  ];
+  t0 += `<div class="sec">Scores</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">`;
+  scArr.forEach(s => {
+    t0 += `<div style="background:#F9FAFB;border:1px solid var(--border);border-radius:7px;padding:9px 11px">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:3px">${s.l}</div>
+      <div style="font-size:18px;font-weight:800;color:var(--${s.c})">${s.v}</div>
+      <div class="prog" style="margin-top:4px"><div class="prog-fill ${s.c}" style="width:${s.v}%"></div></div>
+    </div>`;
+  });
+  t0 += `</div>`;
+
+  // Top 8
+  const top8 = (d.top8||[]).slice(0,8);
+  if (top8.length) {
+    t0 += `<div class="sec">Top anúncios</div>
+    <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>#</th><th>Título</th><th>Preço</th><th>Vendas</th><th>V/dia</th><th>Link</th></tr></thead><tbody>`;
+    top8.forEach(a => {
+      const vpd = a.vpd||0, link = a.link||a.permalink||'#';
+      const vc = vpd>=15?'pill-g':vpd>=8?'pill-o':'pill-x';
+      t0 += `<tr>
+        <td><strong>${a.num||''}</strong></td>
+        <td style="max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.titulo||a.title||''}</td>
+        <td>R$${fmt(a.preco||a.price||0)}</td>
+        <td>${fmtN(a.total_vendas||a.sold_qty||0)}</td>
+        <td><span class="pill ${vc}">${vpd}/d</span></td>
+        <td>${link!='#'?`<a class="pill pill-b" href="${link}" target="_blank" style="text-decoration:none">↗</a>`:'—'}</td>
+      </tr>`;
+    });
+    t0 += `</tbody></table></div>`;
+  }
+
+  // Forças / alertas
+  if ((d.forcas||[]).length)
+    t0 += `<div class="box box-g" style="margin-top:10px"><div class="box-title">Pontos fortes</div><div class="box-body">${d.forcas.map(f=>'✅ '+f).join('<br>')}</div></div>`;
+  if ((d.alertas||[]).length)
+    t0 += `<div class="box box-o"><div class="box-title">Alertas</div><div class="box-body">${d.alertas.map(a=>'⚠️ '+a).join('<br>')}</div></div>`;
+
+  // Amazon US (se pesquisado)
+  if (d.fornecedor_us?.disponivel) {
+    t0 += `<div class="box box-b" style="margin-top:4px">
+      <div class="box-title">🇺🇸 Fornecedor Amazon US</div>
+      <div class="box-body">Preço EUA: $${d.fornecedor_us.preco_usd||0} USD (~R$${fmt(d.fornecedor_us.preco_brl_est||0)})<br>${d.fornecedor_us.observacao||''}</div>
+    </div>`;
+  }
+
+  document.getElementById('tp0').innerHTML = t0;
+
+  // ── TAB 1: FINANCEIRO ──────────────────────────
+  const tokCostFull = (D.tokIn * PRICE_IN + D.tokOut * PRICE_OUT);
+  document.getElementById('tp1').innerHTML = `
+  <div class="kpis" style="margin-bottom:12px">
+    <div class="kpi"><div class="kpi-l">M. Clássico</div><div class="kpi-v ${fin.margemC>=CFG.mm?'green':'red'}">${fmtP(fin.margemC)}%</div></div>
+    <div class="kpi"><div class="kpi-l">M. Premium</div><div class="kpi-v ${fin.margemP>=CFG.mm?'green':'orange'}">${fmtP(fin.margemP)}%</div></div>
+    <div class="kpi"><div class="kpi-l">ROI</div><div class="kpi-v blue">${fin.roi.toFixed(0)}%</div></div>
+  </div>
+  <div class="sec">Demonstrativo</div>
+  <table class="tbl">
+    <tbody>
+      <tr><td colspan="2" style="color:var(--muted);font-size:10px;font-weight:700;text-transform:uppercase;padding-top:10px">RECEITA</td></tr>
+      <tr><td>Preço médio ML</td><td style="text-align:right;font-weight:600">R$${fmt(fin.preco)}</td></tr>
+      <tr><td colspan="2" style="color:var(--muted);font-size:10px;font-weight:700;text-transform:uppercase;padding-top:10px">CUSTOS</td></tr>
+      <tr><td>Taxa clássico (${fmtP(CFG.tc*100)}%)</td><td style="text-align:right;color:var(--red)">−R$${fmt(fin.preco*CFG.tc)}</td></tr>
+      <tr><td>Taxa fixa ML</td><td style="text-align:right;color:var(--red)">−R$${fmt(CFG.tf)}</td></tr>
+      <tr><td>Custo produto</td><td style="text-align:right;color:var(--red)">−R$${fmt(custo)}</td></tr>
+      <tr style="background:#F0FFF4"><td style="font-weight:700;color:var(--green)">Lucro clássico/un</td><td style="text-align:right;font-size:15px;font-weight:800;color:var(--green)">R$${fmt(fin.lucroC)}</td></tr>
+      <tr><td>Lucro premium/un</td><td style="text-align:right;font-weight:600">R$${fmt(fin.lucroP)}</td></tr>
+      <tr><td colspan="2" style="color:var(--muted);font-size:10px;font-weight:700;text-transform:uppercase;padding-top:10px">OPERACIONAL</td></tr>
+      <tr><td>ROI sobre custo</td><td style="text-align:right;font-weight:600">${fin.roi.toFixed(0)}%</td></tr>
+      <tr><td>Breakeven</td><td style="text-align:right;font-weight:600">${fin.breakeven} un/mês</td></tr>
+      <tr><td>Investimento inicial (12 un)</td><td style="text-align:right;font-weight:600">R$${fmt(fin.inv12)}</td></tr>
+      <tr><td colspan="2" style="color:var(--muted);font-size:10px;font-weight:700;text-transform:uppercase;padding-top:10px">CUSTO DA PESQUISA IA</td></tr>
+      <tr><td>Tokens (in/out)</td><td style="text-align:right">${fmtN(D.tokIn)} / ${fmtN(D.tokOut)}</td></tr>
+      <tr><td>Custo desta análise</td><td style="text-align:right;font-weight:600">$${tokCostFull.toFixed(4)}</td></tr>
+      <tr><td>Custo acumulado total</td><td style="text-align:right;font-weight:600" id="fin-total-cost"></td></tr>
+    </tbody>
+  </table>`;
+  // Preencher custo total
+  const totIn  = parseInt(localStorage.getItem('r-tok-in')  || 0);
+  const totOut = parseInt(localStorage.getItem('r-tok-out') || 0);
+  const finTotEl = document.getElementById('fin-total-cost');
+  if (finTotEl) finTotEl.textContent = '$' + (totIn * PRICE_IN + totOut * PRICE_OUT).toFixed(4);
+
+  // ── TAB 2: TRENDS ──────────────────────────────
+  const tr = d.trends_24m || [];
+  let t2 = '';
+  if (tr.length === 24) {
+    const vals = tr.map(t => t.v);
+    const maxV = Math.max(...vals) || 1;
+    const avgV = Math.round(vals.reduce((a,b)=>a+b,0)/24);
+    const pkM  = tr[vals.indexOf(Math.max(...vals))];
+    const lwM  = tr[vals.indexOf(Math.min(...vals))];
+    t2 += `<div class="kpis" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
+      <div class="kpi"><div class="kpi-l">Tendência</div><div class="kpi-v" style="font-size:13px">${d.tendencia||'Estável'}</div></div>
+      <div class="kpi"><div class="kpi-l">Pico</div><div class="kpi-v green">${pkM.m}</div></div>
+    </div>
+    <div class="sec">Índice — 24 meses</div>
+    <div class="tchart">`;
+    tr.forEach(t => {
+      const h = Math.max(Math.round((t.v / maxV) * 100), 4);
+      const cor = t.v === Math.max(...vals) ? '#1D4ED8' : t.v === Math.min(...vals) ? '#EF9F27' : '#B5D4F4';
+      t2 += `<div class="tbar-wrap"><div class="tbar" style="height:${h}%;background:${cor}"></div><div class="tlbl">${t.m.slice(0,3)}</div></div>`;
+    });
+    t2 += `</div>`;
+    if (d.tendencia_interp)
+      t2 += `<div class="box box-b"><div class="box-body">${d.tendencia_interp}</div></div>`;
+  } else {
+    t2 = '<div class="box box-b"><div class="box-body">Dados de tendência não disponíveis.</div></div>';
+  }
+  document.getElementById('tp2').innerHTML = t2;
+
+  // ── TAB 3: REGIÕES ──────────────────────────────
+  const regs = d.regioes || [];
+  let t3 = '';
+  if (regs.length) {
+    const maxP = Math.max(...regs.map(r => r.pct)) || 1;
+    regs.forEach(r => {
+      const w = Math.round((r.pct / maxP) * 100);
+      const cls = r.nivel==='Alta'?'pill-g':r.nivel==='Média'?'pill-o':'pill-x';
+      t3 += `<div class="reg-row">
+        <div class="reg-top"><span>${r.estado}</span><div style="display:flex;align-items:center;gap:6px"><span class="pill ${cls}">${r.nivel||'—'}</span><span style="color:var(--muted);font-size:11px">${r.pct}%</span></div></div>
+        <div class="reg-track"><div class="reg-fill" style="width:${w}%"></div></div>
+      </div>`;
+    });
+  } else { t3 = '<div class="box box-b"><div class="box-body">Dados regionais não disponíveis.</div></div>'; }
+  document.getElementById('tp3').innerHTML = t3;
+
+  // ── TAB 4: CATEGORIAS ───────────────────────────
+  const cats    = d.categorias || [];
+  const bundles = d.bundles    || [];
+  const comp    = (d.comparativo||[]).filter(c => (c.preco_medio||0) > 0);
+  let t4 = '';
+  if (cats.length) {
+    t4 += `<div class="sec">Categorias ML</div>`;
+    cats.forEach(c => { t4 += `<div style="background:#F9FAFB;border:1px solid var(--border);border-radius:7px;padding:9px 12px;margin-bottom:5px;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600">${c.nome}</span><span class="pill pill-g">${fmtN(c.count||0)} anúncios</span></div>`; });
+  }
+  if (bundles.length) {
+    t4 += `<div class="sec">Sugestões de bundle</div>`;
+    bundles.forEach(b => {
+      t4 += `<div class="bundle-card"><div><div style="font-weight:700">${b.nome}</div><div style="font-size:11px;color:var(--muted)">Custo ~R$${fmt(b.custo_est||0)} → Venda R$${fmt(b.preco_sug||0)}</div></div><div style="font-weight:800;color:var(--green);font-size:13px">~${b.margem_est||0}%</div></div>`;
+    });
+  }
+  if (comp.length > 1) {
+    const icons = {'Mercado Livre':'🛒','Shopee':'🧡','Amazon BR':'📦','Amazon EUA':'🇺🇸','Google':'🔍'};
+    t4 += `<div class="sec">Comparativo de canais</div>`;
+    comp.forEach(c => {
+      t4 += `<div class="bundle-card"><div style="font-size:18px">${icons[c.marketplace]||'🏪'}</div><div style="flex:1"><div style="font-weight:600">${c.marketplace}</div><div style="font-size:11px;color:var(--muted)">${c.vantagem||''}</div></div><div style="font-weight:800;color:var(--blue)">R$${fmt(c.preco_medio||0)}</div></div>`;
+    });
+    if (d.melhor_canal)
+      t4 += `<div class="box box-g"><div class="box-title">🏆 Melhor canal: ${d.melhor_canal}</div><div class="box-body">${d.melhor_canal_motivo||''}</div></div>`;
+  }
+  document.getElementById('tp4').innerHTML = t4 || '<div class="box box-b"><div class="box-body">Dados de categorias não disponíveis.</div></div>';
+}
+
+// ═══════════════════════════════════════
+//  HISTÓRICO (tab 5)
+// ═══════════════════════════════════════
+async function showHistory() {
+  const el = document.getElementById('tp5');
+  el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">⏳ Carregando…</div>';
+  try {
+    const d = await fetch(W + '/db/searches?limit=50', {
+      headers: { 'X-Tenant-ID': TID }
+    }).then(r => r.json());
+
+    const list = d.searches || [];
+
+    // Contadores
+    let ap = 0, sb = 0, rp = 0, pe = 0;
+    list.forEach(s => {
+      if (s.status === 'aprovado') ap++;
+      else if (s.status === 'standby') sb++;
+      else if (s.status === 'reprovado') rp++;
+      else pe++;
+    });
+    const total = list.length || 1;
+
+    // Donut SVG
+    const donut = buildDonut(ap, sb, rp, pe, total);
+
+    let h = `<div class="sec">Distribuição (${list.length} pesquisas)</div>
+    <div class="chart-wrap">
+      ${donut}
+      <div class="chart-legend">
+        ${[['var(--green)','Aprovados',ap],['var(--orange)','Standby',sb],['var(--red)','Reprovados',rp],['var(--muted)','Pendentes',pe]].map(([c,l,v]) =>
+          `<div class="legend-item"><div class="legend-dot" style="background:${c}"></div>${l}<div class="legend-val">${v}</div></div>`
+        ).join('')}
+      </div>
+    </div>`;
+
+    if (!list.length) {
+      h += '<div class="box box-b"><div class="box-body">Nenhuma pesquisa realizada ainda.</div></div>';
+    } else {
+      h += `<div class="sec">Histórico</div>`;
+      list.forEach(s => {
+        const statusMap = { aprovado:'ap', standby:'sb', reprovado:'rp' };
+        const dotCls = statusMap[s.status] || 'pe';
+        const dtStr  = s.created_at ? new Date(s.created_at).toLocaleDateString('pt-BR') : '—';
+        const costStr = s.cost_usd ? '$' + parseFloat(s.cost_usd).toFixed(4) : '';
+        const margemStr = s.margin_c ? parseFloat(s.margin_c).toFixed(1) + '%' : '—';
+        h += `<div class="hist-item" onclick="refillFromHistory('${s.keyword.replace(/'/g,"\\'")}', ${s.cost||0})">
+          <div class="hist-dot ${dotCls}"></div>
+          <div class="hist-kw">${s.keyword}</div>
+          <span class="pill ${dotCls==='ap'?'pill-g':dotCls==='sb'?'pill-o':dotCls==='rp'?'pill-r':'pill-x'}" style="flex-shrink:0">${s.verdict||'—'}</span>
+          <div class="hist-date">${dtStr}</div>
+          <div class="hist-cost">${costStr}</div>
+        </div>`;
+      });
+    }
+
+    el.innerHTML = h;
+  } catch(e) {
+    el.innerHTML = '<div style="color:var(--red);padding:12px;font-size:12px">Erro ao carregar histórico.</div>';
+  }
+}
+
+function buildDonut(ap, sb, rp, pe, total) {
+  const r = 36, cx = 44, cy = 44, stroke = 14;
+  const circ = 2 * Math.PI * r;
+  const segs = [
+    { v: ap, c: '#00A650' }, { v: sb, c: '#EF9F27' },
+    { v: rp, c: '#F04E37' }, { v: pe, c: '#9CA3AF' }
+  ];
+  let offset = 0;
+  let paths = '';
+  segs.forEach(s => {
+    const len = (s.v / total) * circ;
+    if (len > 0) {
+      paths += `<circle r="${r}" cx="${cx}" cy="${cy}" fill="none" stroke="${s.c}" stroke-width="${stroke}"
+        stroke-dasharray="${len} ${circ-len}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${cx} ${cy})"/>`;
+      offset += len;
+    }
+  });
+  return `<svg class="chart-svg" width="88" height="88" viewBox="0 0 88 88">
+    <circle r="${r}" cx="${cx}" cy="${cy}" fill="none" stroke="#E5E7EB" stroke-width="${stroke}"/>
+    ${paths}
+    <text x="${cx}" y="${cy+1}" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="800" fill="#374151">${total}</text>
+    <text x="${cx}" y="${cy+13}" text-anchor="middle" dominant-baseline="middle" font-size="8" fill="#9CA3AF">total</text>
+  </svg>`;
+}
+
+function refillFromHistory(kw, cost) {
+  document.getElementById('inp-produto').value = kw;
+  document.getElementById('inp-custo').value   = cost;
+  // Scroll to top on mobile
+  if (window.innerWidth <= 820)
+    document.getElementById('left-panel').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ═══════════════════════════════════════
+//  FILA DE COMPRAS (tab 6)
+// ═══════════════════════════════════════
+async function showQueue() {
+  const el = document.getElementById('tp6');
+  el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">⏳ Carregando…</div>';
+  try {
+    const d = await fetch(W + '/db/searches?limit=50', {
+      headers: { 'X-Tenant-ID': TID }
+    }).then(r => r.json());
+
+    const queue = (d.searches||[]).filter(s => s.status === 'aprovado');
+
+    if (!queue.length) {
+      el.innerHTML = `<div class="box box-b" style="margin:8px"><div class="box-title">Fila de compras vazia</div><div class="box-body">Classifique uma pesquisa como ✅ Aprovado para adicioná-la aqui.</div></div>`;
+      return;
+    }
+
+    let h = `<div class="sec">✅ Fila de compras (${queue.length} itens)</div>`;
+    queue.forEach((s, i) => {
+      const dtStr = s.created_at ? new Date(s.created_at).toLocaleDateString('pt-BR') : '';
+      h += `<div class="queue-item">
+        <div class="queue-num">${i+1}</div>
+        <div class="queue-info">
+          <div class="queue-name">${s.keyword}</div>
+          <div class="queue-meta">Custo R$${parseFloat(s.cost||0).toFixed(2)} · Margem ${parseFloat(s.margin_c||0).toFixed(1)}% · ${dtStr}</div>
+        </div>
+        <span class="pill pill-g">Aprovado</span>
+      </div>`;
+    });
+    el.innerHTML = h;
+  } catch(e) {
+    el.innerHTML = '<div style="color:var(--red);padding:12px;font-size:12px">Erro ao carregar fila.</div>';
+  }
+}
+</script>
+
+<!-- ═══ SETTINGS MODAL ═══ -->
+<div class="s-overlay" id="s-overlay" onclick="if(event.target===this)closeSettings()">
+  <div class="s-modal">
+    <div class="s-modal-hdr">
+      <div>
+        <div style="font-size:15px;font-weight:800">⚙️ Configurações</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.65);margin-top:1px">Parâmetros, treinamento e referências</div>
+      </div>
+      <button onclick="closeSettings()" class="s-close">✕</button>
+    </div>
+
+    <!-- TABS -->
+    <div class="s-tabs">
+      <button class="s-tab on" onclick="showSTab(0,this)">🔑 API</button>
+      <button class="s-tab" onclick="showSTab(1,this)">💰 Taxas</button>
+      <button class="s-tab" onclick="showSTab(2,this)">📊 Critérios</button>
+      <button class="s-tab" onclick="showSTab(3,this)">🧠 Treinamento</button>
+      <button class="s-tab" onclick="showSTab(4,this)">📖 Glossário</button>
+    </div>
+
+    <div class="s-body">
+
+      <!-- TAB 0: API KEYS -->
+      <div class="s-pane on" id="sp0">
+        <div class="s-field"><label>Claude API Key</label><input type="password" id="s-key" placeholder="sk-ant-..."><div class="s-hint">Necessária para pesquisas. Obtenha em console.anthropic.com</div></div>
+        <div class="s-field"><label>Meta mensal de faturamento (R$)</label><input type="number" id="s-meta" placeholder="80000"><div class="s-hint">Usada no Agente IA e Calendário para personalizar sugestões</div></div>
+        <div class="s-stats-row" id="s-stats">
+          <div class="s-stat"><div class="s-stat-l">Tokens usados</div><div class="s-stat-v" id="ss-tok">0</div></div>
+          <div class="s-stat"><div class="s-stat-l">Pesquisas</div><div class="s-stat-v" id="ss-n">0</div></div>
+          <div class="s-stat"><div class="s-stat-l">Custo total</div><div class="s-stat-v" id="ss-cost">$0.000</div></div>
+        </div>
+        <button class="btn-sm" onclick="clearCost()" style="margin-top:2px">🗑️ Zerar contador</button>
+      </div>
+
+      <!-- TAB 1: TAXAS -->
+      <div class="s-pane" id="sp1">
+        <div class="s-info">As taxas são usadas para calcular margem e rentabilidade em cada análise.</div>
+        <div class="s-row trio">
+          <div class="s-field"><label>Clássico (%)</label><input type="number" id="s-tc" step="0.1" placeholder="11.5"><div class="s-hint">Anúncios clássicos</div></div>
+          <div class="s-field"><label>Premium (%)</label><input type="number" id="s-tp" step="0.1" placeholder="16"><div class="s-hint">Anúncios premium</div></div>
+          <div class="s-field"><label>Taxa fixa (R$)</label><input type="number" id="s-tf" step="0.5" placeholder="7"><div class="s-hint">Por venda realizada</div></div>
+        </div>
+        <div class="s-info" style="margin-top:8px">
+          <strong>Exemplo:</strong> Produto R$85 clássico:<br>
+          R$85 − 11,5% (R$9,78) − R$7 fixo − custo = lucro
+        </div>
+      </div>
+
+      <!-- TAB 2: CRITÉRIOS -->
+      <div class="s-pane" id="sp2">
+        <div class="s-info">Defina os critérios mínimos para aprovação de um produto.</div>
+        <div class="s-row">
+          <div class="s-field"><label>Vendas mínimas C1</label><input type="number" id="s-vm" placeholder="500"><div class="s-hint">Vendas necessárias nos últimos 90 dias</div></div>
+          <div class="s-field"><label>Margem mínima C2 (%)</label><input type="number" id="s-mm" placeholder="25"><div class="s-hint">Margem líquida mínima para aprovação</div></div>
+        </div>
+        <div class="s-row">
+          <div class="s-field"><label>Anúncios mínimos C1</label><input type="number" id="s-an" placeholder="3"><div class="s-hint">Qtd de anúncios que devem atingir C1</div></div>
+          <div class="s-field"><label>Janela de análise (dias)</label><input type="number" id="s-jn" placeholder="90"><div class="s-hint">Período de referência para vendas</div></div>
+        </div>
+      </div>
+
+      <!-- TAB 3: TREINAMENTO -->
+      <div class="s-pane" id="sp3">
+        <div class="s-info">Descreva sua operação para personalizar as análises da IA. Quanto mais contexto, mais precisa será a análise.</div>
+        <div class="s-field">
+          <label>Contexto do negócio</label>
+          <textarea id="s-ctx" rows="6" placeholder="Ex: Vendo produtos de pesca no ML. Público: pescadores amadores. Margem mínima real: 30%. Prefiro produtos leves (&lt;1kg). Evito eletrônicos. Ticket médio atual: R$65. Capital de giro disponível: R$3.000..."></textarea>
+        </div>
+        <div class="s-field">
+          <label>Documento de referência (PDF ou TXT)</label>
+          <div class="doc-zone" id="doc-zone">
+            <input type="file" accept=".pdf,.txt,.md" onchange="handleDoc(this)">
+            📄 Clique para carregar PDF, TXT ou MD (máx 10 páginas)
+            <div id="doc-name" style="display:none;margin-top:5px"></div>
+          </div>
+          <div class="s-hint">O conteúdo do documento é injetado em cada prompt como contexto adicional</div>
+        </div>
+      </div>
+
+      <!-- TAB 4: GLOSSÁRIO -->
+      <div class="s-pane" id="sp4">
+        <div class="s-info">Referência dos critérios, scores e termos usados nas análises.</div>
+
+        <div class="gloss-section">Critérios de aprovação</div>
+        <div class="gloss-item"><div class="gloss-term">C1 — Demanda comprovada</div><div class="gloss-def">Exige que pelo menos N anúncios (padrão: 3) tenham atingido X vendas (padrão: 500) no período configurado. Garante que o produto tem mercado real.</div></div>
+        <div class="gloss-item"><div class="gloss-term">C2 — Margem viável</div><div class="gloss-def">Calcula: (Preço − Taxa ML% − Taxa fixa − Custo) ÷ Preço. Deve superar a margem mínima configurada (padrão: 25%).</div></div>
+
+        <div class="gloss-section">Scores (0–100)</div>
+        <div class="gloss-item"><div class="gloss-term">Demanda</div><div class="gloss-def">Volume de vendas mensais e velocidade diária. Alto = produto com grande movimento.</div></div>
+        <div class="gloss-item"><div class="gloss-term">Concorrência</div><div class="gloss-def">Quantidade de anúncios ativos. Score alto = menos concorrentes disputando o espaço.</div></div>
+        <div class="gloss-item"><div class="gloss-term">Margem</div><div class="gloss-def">Rentabilidade calculada com suas taxas. Score alto = margem confortável acima do mínimo.</div></div>
+        <div class="gloss-item"><div class="gloss-term">Tendência</div><div class="gloss-def">Comportamento do interesse nos últimos 24 meses. Alto = produto em crescimento.</div></div>
+        <div class="gloss-item"><div class="gloss-term">Logística</div><div class="gloss-def">Facilidade de envio (peso, tamanho, fragilidade). Alto = produto fácil de operar.</div></div>
+        <div class="gloss-item"><div class="gloss-term">Escala</div><div class="gloss-def">Potencial de crescimento. Alto = produto com espaço para aumentar volume.</div></div>
+
+        <div class="gloss-section">Classificações</div>
+        <div class="gloss-item"><div class="gloss-term">✅ Aprovado</div><div class="gloss-def">C1 e C2 atingidos. Produto vai para a fila de compras.</div></div>
+        <div class="gloss-item"><div class="gloss-term">⚠️ Alto Potencial</div><div class="gloss-def">C1 atingido mas margem abaixo do mínimo. Vale negociar custo ou ajustar preço.</div></div>
+        <div class="gloss-item"><div class="gloss-term">❌ Descartado</div><div class="gloss-def">C1 não atingido. Produto sem demanda comprovada no período analisado.</div></div>
+
+        <div class="gloss-section">Status das pesquisas</div>
+        <div class="gloss-item"><div class="gloss-term">🟢 Aprovado → Fila</div><div class="gloss-def">Produto validado e adicionado à fila de compras para próximo pedido.</div></div>
+        <div class="gloss-item"><div class="gloss-term">🟡 Standby</div><div class="gloss-def">Produto interessante mas aguardando condição (preço do fornecedor, capital, etc).</div></div>
+        <div class="gloss-item"><div class="gloss-term">🔴 Reprovado</div><div class="gloss-def">Produto descartado manualmente. Mantido no histórico para referência.</div></div>
+      </div>
+
+    </div>
+
+    <div class="s-footer">
+      <button class="btn-sm" onclick="closeSettings()">Fechar</button>
+      <button class="btn-sm primary" onclick="saveSettings()">💾 Salvar configurações</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
